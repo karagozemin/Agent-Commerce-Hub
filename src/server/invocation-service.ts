@@ -27,8 +27,14 @@ export class InvocationService {
     if (service.availability !== "online") throw new Error("Service is not available");
     validateServiceInput(service, input.payload);
 
+    const inputHash = hashPayload(input.payload);
     const existing = await this.repository.findByIdempotencyKey(input.idempotencyKey, input.buyerWallet);
-    if (existing) return existing;
+    if (existing) {
+      if (existing.serviceId !== service.id || existing.inputHash !== inputHash) {
+        throw new Error("Idempotency key was already used for a different invocation");
+      }
+      return existing;
+    }
 
     const now = new Date().toISOString();
     const invocation = await this.repository.create({
@@ -38,7 +44,7 @@ export class InvocationService {
       buyerWallet: input.buyerWallet,
       status: "CREATED",
       input: input.payload,
-      inputHash: hashPayload(input.payload),
+      inputHash,
       isInternal: internalWallets.has(input.buyerWallet.toLowerCase()),
       createdAt: now,
       updatedAt: now,

@@ -21,6 +21,27 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       payload: body.input,
     });
 
+    if (invocation.status === "SUCCEEDED") {
+      return NextResponse.json({
+        data: invocation,
+        idempotentReplay: true,
+      });
+    }
+
+    if (invocation.status === "EXECUTING" || invocation.status === "PAYMENT_CONFIRMED") {
+      return NextResponse.json(
+        { data: invocation },
+        { status: 202, headers: { "X-Invocation-Id": invocation.id } },
+      );
+    }
+
+    if (!invocation.paymentOrder) {
+      return NextResponse.json(
+        { error: "Invocation cannot be resumed", invocationId: invocation.id, status: invocation.status },
+        { status: 409 },
+      );
+    }
+
     return NextResponse.json(
       {
         error: "Payment required",
@@ -31,9 +52,10 @@ export async function POST(request: Request, context: { params: Promise<{ slug: 
       { status: 402, headers: { "X-Invocation-Id": invocation.id } },
     );
   } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to start invocation";
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to start invocation" },
-      { status: 400 },
+      { error: message },
+      { status: message.startsWith("Idempotency key") ? 409 : 400 },
     );
   }
 }

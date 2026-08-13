@@ -61,6 +61,18 @@ describe("InvocationService", () => {
     expect(payments.orders).toBe(1);
   });
 
+  it("rejects an idempotency key reused with different input", async () => {
+    const payments = new TestPaymentProvider();
+    const service = new InvocationService(new MemoryInvocationRepository(), payments);
+    await service.start(startInput());
+
+    await expect(service.start({
+      ...startInput(),
+      payload: { address: "0x0000000000000000000000000000000000000001" },
+    })).rejects.toThrow("different invocation");
+    expect(payments.orders).toBe(1);
+  });
+
   it("fulfills once after matching proof", async () => {
     const service = new InvocationService(new MemoryInvocationRepository(), new TestPaymentProvider());
     const started = await service.start(startInput());
