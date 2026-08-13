@@ -1,0 +1,2340 @@
+# Product Requirements Document
+
+## Agent Commerce Hub
+
+**Working name:** Agent Commerce Hub
+**Status:** Pre-MVP
+**Target Network:** GOAT Network Mainnet
+**Product Type:** Agent-native commerce marketplace and monetization gateway
+**Primary Protocols:** GOAT Flow / x402, ERC-8004, GOAT AgentKit
+**Primary Goal:** Generate repeatable, externally driven GOAT mainnet transactions from real usage of paid AI agent services
+
+---
+
+# 1. Executive Summary
+
+Agent Commerce Hub is a marketplace and monetization layer for AI agent services on GOAT Network.
+
+Builders can bring an existing AI agent, API, MCP tool, or automated service and turn it into a paid service without rebuilding their product around payments.
+
+Each service receives:
+
+* A public marketplace listing
+* A machine-readable service definition
+* A paid invocation endpoint
+* GOAT Flow / x402 payment support
+* ERC-8004 agent identity
+* Direct seller settlement
+* Public transaction and usage metrics
+* A dashboard for revenue, users, and service activity
+
+Users and AI agents can discover services, pay for them per use, and receive the result.
+
+Every successful paid invocation is designed to create a real economic transaction on GOAT mainnet.
+
+The core loop is:
+
+**Discover → Request → Pay → Execute → Settle → Measure → Repeat**
+
+This is not primarily a developer toolkit.
+
+It is a live agent commerce product where the toolkit, payment gateway, marketplace, identity layer, and analytics exist to make real paid usage happen.
+
+---
+
+# 2. Product Thesis
+
+Most agent projects do not need another SDK.
+
+They need three things:
+
+1. A way to make money
+2. A way to reach users or other agents
+3. A way to prove that people are actually using the product
+
+Agent Commerce Hub provides all three.
+
+A builder with an existing agent should be able to bring that service to GOAT, publish it, attach a price, receive payments, expose it to other agents, and begin producing measurable on-chain activity.
+
+The marketplace therefore becomes both:
+
+**A distribution channel for agent builders**
+
+and
+
+**A transaction engine for GOAT Network**
+
+The product grows as more builders are onboarded.
+
+Each new builder can introduce:
+
+* A new service
+* A new seller
+* Their existing users
+* Their own agent traffic
+* New payment volume
+* New GOAT mainnet transactions
+
+This creates a direct relationship between ecosystem growth and product growth.
+
+---
+
+# 3. Why This Product Should Exist
+
+There is currently friction between having a working AI agent and turning that agent into an economic product.
+
+A builder may already have:
+
+* A working AI agent
+* A useful API
+* An MCP server
+* An automation product
+* A research agent
+* A coding agent
+* A support agent
+* A data service
+* An agent workflow
+
+But monetization usually requires additional work:
+
+* Payment integration
+* Merchant infrastructure
+* Authentication
+* Usage tracking
+* Billing
+* Distribution
+* User acquisition
+* Identity
+* Trust
+* Analytics
+
+Agent Commerce Hub reduces that gap.
+
+Instead of telling a builder:
+
+> Integrate payments, build a dashboard, create distribution, register identity, then find users
+
+the product should allow us to say:
+
+> Bring your existing agent service, publish it here, connect your GOAT payment setup, and start accepting paid calls
+
+---
+
+# 4. GOAT Alignment
+
+The product is intentionally designed around the current GOAT Builder Grants thesis.
+
+GOAT currently describes the target as agent-native products that solve real problems, support repeat usage, and create real economic activity. Its transactional application category specifically includes agents paying for APIs, data, compute, digital services, and transactions with other agents.
+
+Agent Commerce Hub maps directly to that thesis.
+
+| GOAT Requirement     | Agent Commerce Hub                                                            |
+| -------------------- | ----------------------------------------------------------------------------- |
+| Agent-native         | Agents can discover, purchase, and invoke services without human intervention |
+| Working product      | Live marketplace, live services, payment gateway, analytics                   |
+| Transactional        | Every successful paid invocation creates economic activity                    |
+| Repeat usage         | Services are consumed per request, not as one-time demos                      |
+| Revenue path         | Sellers earn on every paid invocation                                         |
+| Mainnet              | Production activity is settled on GOAT mainnet                                |
+| x402                 | Core payment mechanism                                                        |
+| ERC-8004             | Seller agent identity and reputation surface                                  |
+| Real users           | External builders and their users are onboarded before grant submission       |
+| Active metrics       | Public dashboard measures verified mainnet activity                           |
+| GOAT ecosystem value | Every new seller can introduce additional services, users, and transactions   |
+
+GOAT Flow is GOAT's current implementation of x402 commerce and supports payment flows where a buyer receives a payment challenge, transfers an ERC-20 asset, and the merchant verifies settlement before fulfillment. DIRECT mode sends the payment to the merchant's receiving address, which makes it suitable for commerce and API monetization.
+
+ERC-8004 provides GOAT builders with on-chain identity and reputation registries for agents.
+
+AgentKit can connect existing agents to GOAT payments and ERC-8004 rather than requiring builders to create entirely new agents.
+
+---
+
+# 5. Core Product Positioning
+
+## One-line description
+
+**A commerce layer where builders publish paid AI agent services and every real usage can generate a GOAT mainnet payment**
+
+## Builder-facing description
+
+**Turn your existing AI agent, API, or MCP service into a paid GOAT service and start earning per call**
+
+## Buyer-facing description
+
+**Discover useful AI services and pay only when your agent actually uses them**
+
+## GOAT-facing description
+
+**A transaction-generating agent marketplace that converts builder onboarding into measurable mainnet economic activity**
+
+---
+
+# 6. Product Principles
+
+### Economic activity first
+
+Features should ultimately contribute to real usage, seller revenue, buyer utility, or repeat transactions.
+
+### Mainnet by design
+
+Testnet is used for development and integration testing.
+
+Grant metrics must come from GOAT mainnet.
+
+### Real users over transaction farming
+
+Transactions from project-owned wallets must never be presented as user traction.
+
+### Pay for useful outcomes
+
+Users pay because a service solves a problem, not because the product exists to create blockchain transactions.
+
+### Non-custodial where possible
+
+Payments should flow directly from buyer to seller whenever the GOAT Flow integration allows it.
+
+### Machine-first
+
+A human should be able to use the marketplace, but an AI agent should also be able to discover and purchase a service programmatically.
+
+### Standards first
+
+Use GOAT Flow, x402, ERC-8004, AgentKit, and existing GOAT infrastructure before introducing custom smart contracts.
+
+### Metrics must be auditable
+
+Every transaction shown publicly should have an explorer-verifiable transaction hash.
+
+---
+
+# 7. Target Users
+
+## 7.1 Agent Builders
+
+Developers who already have an AI agent, MCP tool, API, or automated service.
+
+They want to:
+
+* Monetize their service
+* Reach more users
+* Generate real usage
+* Integrate GOAT
+* Strengthen their Builder Grant application
+* Measure revenue and transaction activity
+
+## 7.2 Autonomous Buyer Agents
+
+Agents that need external capabilities such as:
+
+* Research
+* Data
+* Analysis
+* Code review
+* Blockchain data
+* Security checks
+* Compute
+* Workflow execution
+
+They should be able to discover services and pay programmatically.
+
+## 7.3 Human Developers
+
+Developers may manually browse and test services before wiring them into their agent.
+
+## 7.4 GOAT Ecosystem Builders
+
+Projects being introduced through the Developer Advocate program become an important initial supply channel.
+
+Instead of only inviting them to apply for GOAT grants, they can also be offered a practical path to generate real GOAT usage.
+
+---
+
+# 8. Core Growth Loop
+
+The product should create a builder-led growth flywheel.
+
+```text
+Developer outreach
+       ↓
+Qualified AI builder
+       ↓
+Builder joins GOAT
+       ↓
+Builder publishes agent service
+       ↓
+Service becomes payable through x402
+       ↓
+Builder brings existing users / agents
+       ↓
+Paid calls happen
+       ↓
+GOAT mainnet transactions
+       ↓
+Seller earns revenue
+       ↓
+Public metrics improve
+       ↓
+Stronger proof for builder + marketplace
+       ↓
+More builders become interested
+       ↓
+More services and users
+```
+
+This is important because product distribution and Developer Advocate work reinforce each other.
+
+Builder outreach becomes marketplace acquisition.
+
+Marketplace acquisition becomes GOAT transaction growth.
+
+GOAT transaction growth becomes stronger proof when recruiting the next builder.
+
+---
+
+# 9. North Star Metric
+
+## Externally Initiated Successful Paid Invocations on GOAT Mainnet
+
+A transaction counts toward the North Star only if:
+
+1. The payer is not a project-controlled wallet
+2. A real service was requested
+3. Payment settled on GOAT mainnet
+4. The seller received payment
+5. The requested service successfully executed
+6. A result was delivered to the buyer
+
+This prevents artificial transaction inflation.
+
+---
+
+# 10. Secondary Metrics
+
+The public analytics system should measure:
+
+### Transaction Metrics
+
+* Successful paid invocations
+* GOAT mainnet transactions
+* Transactions per day
+* Transactions per service
+* Transactions per seller
+
+### User Metrics
+
+* Unique external payers
+* New payers
+* Returning payers
+* Repeat payer rate
+* Active buyers
+
+### Seller Metrics
+
+* Active sellers
+* Active services
+* Seller revenue
+* Calls per seller
+* Sellers with repeat customers
+
+### Economic Metrics
+
+* Total payment volume
+* Median payment size
+* Average payment size
+* Revenue per service
+* Revenue per seller
+
+### Product Metrics
+
+* Service discovery to invocation conversion
+* Payment challenge to settlement conversion
+* Settlement to successful fulfillment rate
+* Failed invocation rate
+* Median service latency
+* Repeat service usage
+
+---
+
+# 11. Metrics Integrity
+
+Metrics integrity is a core product requirement.
+
+The dashboard must clearly distinguish:
+
+**External activity**
+
+from
+
+**Internal testing**
+
+Known team wallets must be maintained in an internal wallet registry.
+
+Public headline metrics should exclude those wallets by default.
+
+The public metrics page should provide:
+
+* Total external transactions
+* Total internal transactions
+* Unique external payers
+* External payment volume
+* External seller revenue
+* Explorer links
+* Methodology explaining how metrics are calculated
+
+This makes the numbers auditable rather than promotional claims.
+
+---
+
+# 12. Grant Readiness Targets
+
+These are internal targets, not official GOAT requirements.
+
+The product should ideally not apply until there is evidence beyond a founder demo.
+
+## Minimum Pilot Gate
+
+* 3 external builder teams
+* 5 live paid services
+* 10 external payer wallets
+* 50+ externally initiated mainnet paid invocations
+* At least 2 services used more than once by the same external user
+* Non-zero external seller revenue
+* Public live metrics page
+
+## Strong Submission Target
+
+* 5+ external builders
+* 8 to 12 paid services
+* 20 to 30 unique external payer wallets
+* 150 to 250+ real paid mainnet invocations
+* 25%+ repeat payer rate
+* Multiple sellers earning revenue
+* At least 3 services demonstrating repeat usage
+* 95%+ successful payment-to-fulfillment rate
+* Internal/test transactions below 10% of headline activity
+
+The objective is not to artificially hit numbers.
+
+The objective is to prove that the transaction loop works with people who are not part of the project team.
+
+---
+
+# 13. Core User Flow: Seller
+
+## Step 1: Connect
+
+Seller connects an EVM wallet.
+
+The platform signs a nonce for authentication.
+
+No password is required.
+
+## Step 2: Create or Link Agent Identity
+
+The seller can:
+
+* Link an existing ERC-8004 identity
+* Register a new ERC-8004 identity
+* Skip temporarily during draft creation
+
+A production listing should require a linked identity before receiving a verified badge.
+
+## Step 3: Add Service
+
+Seller provides:
+
+* Service name
+* Description
+* Category
+* Existing HTTP or MCP endpoint
+* Input schema
+* Output schema
+* Price per invocation
+* Receiving wallet
+* Expected response time
+* Optional documentation
+* Optional demo
+* Optional repository
+* Optional authentication secret
+
+## Step 4: Connect GOAT Payment Configuration
+
+Seller connects or configures the required GOAT Flow merchant environment.
+
+Sensitive merchant credentials remain backend-only, consistent with GOAT Flow's documented security model.
+
+## Step 5: Verify Endpoint
+
+The platform performs:
+
+* Health check
+* Schema validation
+* Endpoint reachability
+* Response validation
+* Timeout validation
+* Basic abuse/security check
+
+## Step 6: Test Payment
+
+A test invocation is made.
+
+Testnet is used during development.
+
+Production activation requires a successful mainnet invocation.
+
+## Step 7: Publish
+
+The service becomes available in:
+
+* Web marketplace
+* Public API
+* Machine-readable registry
+* Marketplace MCP server
+
+## Step 8: Earn
+
+Every successful paid invocation sends payment to the seller's configured receiving address.
+
+---
+
+# 14. Core User Flow: Human Buyer
+
+1. User opens marketplace
+2. Browses or searches services
+3. Opens service page
+4. Reviews:
+
+   * Price
+   * Seller
+   * ERC-8004 identity
+   * Description
+   * Input format
+   * Usage metrics
+   * Availability
+5. Connects wallet
+6. Provides service input
+7. Requests invocation
+8. Payment requirement is generated
+9. User approves payment
+10. Payment settles on GOAT mainnet
+11. Payment is verified
+12. Service executes
+13. Result is delivered
+14. Transaction appears in activity history
+15. Public metrics update
+
+---
+
+# 15. Core User Flow: Autonomous Buyer Agent
+
+A buyer agent should not require the visual marketplace.
+
+The flow is:
+
+1. Agent queries service registry
+2. Agent filters by:
+
+   * Capability
+   * Price
+   * Identity
+   * Reputation
+   * Availability
+3. Agent selects service
+4. Agent sends invocation
+5. Gateway returns payment requirement
+6. Agent pays through GOAT-compatible payment flow
+7. Payment confirms
+8. Gateway forwards request
+9. Seller service executes
+10. Result returns to agent
+11. Invocation is recorded
+
+This is what makes the marketplace genuinely agent-native rather than a normal website with AI branding.
+
+---
+
+# 16. Machine-Readable Service Manifest
+
+Every service must expose normalized metadata.
+
+Example:
+
+```json
+{
+  "service_id": "svc_123",
+  "name": "Contract Risk Analyzer",
+  "description": "Analyzes an EVM contract and returns a structured risk report",
+  "seller": {
+    "wallet": "0x...",
+    "erc8004_agent_id": "..."
+  },
+  "network": "goat-mainnet",
+  "pricing": {
+    "model": "per_call",
+    "amount": "0.10",
+    "asset": "USDC"
+  },
+  "input_schema": {},
+  "output_schema": {},
+  "availability": "online",
+  "payment_protocol": "x402"
+}
+```
+
+The exact asset must come from the seller's actual GOAT Flow configuration rather than being assumed globally, because supported token configuration can vary by merchant/environment.
+
+---
+
+# 17. Marketplace MCP Server
+
+The marketplace should expose an MCP interface.
+
+Core tools:
+
+```text
+search_services
+get_service
+get_service_price
+invoke_service
+get_invocation_status
+get_service_metrics
+get_agent_identity
+```
+
+Example:
+
+```text
+Agent:
+Find a service that can analyze GOAT wallet activity under $0.20
+
+Marketplace:
+Found WalletLens
+Price: $0.08
+Seller identity: verified
+Availability: online
+
+Agent:
+Invoke WalletLens for 0x...
+
+Marketplace:
+Payment required
+
+Agent:
+Pays
+
+Marketplace:
+Payment confirmed
+Executing service...
+
+Marketplace:
+Returns result
+```
+
+The marketplace MCP server is a distribution interface.
+
+It is not the product itself.
+
+The economic product remains the paid service marketplace.
+
+---
+
+# 18. Two Seller Integration Modes
+
+## Mode A: Managed Commerce Gateway
+
+Designed for builders who have an agent/API but have not implemented payment gating.
+
+Seller provides:
+
+* Endpoint
+* Schema
+* Merchant configuration
+* Receiving wallet
+* Price
+
+Agent Commerce Hub handles:
+
+* Payment challenge
+* Payment verification
+* Invocation gating
+* Endpoint forwarding
+* Result delivery
+* Metrics
+
+Seller keeps the actual agent logic.
+
+## Mode B: Bring Your Own Paid Endpoint
+
+Designed for mature builders who already have GOAT Flow/x402 support.
+
+Seller provides:
+
+* Existing paid endpoint
+* Service manifest
+* ERC-8004 identity
+* Pricing metadata
+
+Agent Commerce Hub provides:
+
+* Discovery
+* Marketplace listing
+* Agent routing
+* Analytics
+* Reputation
+* Distribution
+
+This allows the marketplace to support both early GOAT builders and mature projects.
+
+---
+
+# 19. Payment Architecture
+
+For MVP, prefer GOAT Flow DIRECT payment behavior wherever technically appropriate.
+
+GOAT Flow documents DIRECT as a payment mode where the selected ERC-20 asset is transferred to the merchant receiving address and the merchant verifies confirmation before fulfilling the request.
+
+The ideal MVP payment architecture is therefore:
+
+```text
+Buyer
+  |
+  | request service
+  v
+Agent Commerce Gateway
+  |
+  | payment challenge
+  v
+Buyer Wallet / Buyer Agent
+  |
+  | GOAT Flow / x402 payment
+  v
+GOAT Mainnet
+  |
+  | direct settlement
+  v
+Seller Wallet
+  |
+  | payment verified
+  v
+Agent Commerce Gateway
+  |
+  | invoke
+  v
+Seller Agent / API
+  |
+  | result
+  v
+Buyer
+```
+
+This provides three important properties:
+
+1. Real economic activity
+2. Real seller revenue
+3. Minimal marketplace custody
+
+---
+
+# 20. Fulfillment Rule
+
+**Never execute a paid service solely because the frontend says payment succeeded**
+
+The backend must verify trusted payment state before fulfillment.
+
+GOAT Flow documentation explicitly treats browser success as a UX signal rather than sufficient proof for fulfillment.
+
+Required state machine:
+
+```text
+CREATED
+↓
+PAYMENT_REQUIRED
+↓
+PAYMENT_SUBMITTED
+↓
+PAYMENT_CONFIRMED
+↓
+EXECUTING
+↓
+SUCCEEDED
+```
+
+Failure paths:
+
+```text
+PAYMENT_FAILED
+PAYMENT_EXPIRED
+EXECUTION_FAILED
+REFUND_REQUIRED
+REFUNDED
+```
+
+---
+
+# 21. Invocation Model
+
+Every invocation receives a globally unique ID.
+
+Example:
+
+```text
+inv_01J...
+```
+
+Each invocation stores:
+
+* Invocation ID
+* Service ID
+* Seller ID
+* Buyer wallet
+* Payment order ID
+* Payment transaction hash
+* Payment amount
+* Payment asset
+* Network
+* Input hash
+* Output hash
+* Start time
+* Settlement time
+* Execution time
+* Final status
+* Failure reason
+* Internal/external classification
+
+---
+
+# 22. Receipts
+
+Every successful invocation receives a verifiable receipt.
+
+MVP receipt:
+
+```json
+{
+  "invocation_id": "inv_...",
+  "service_id": "svc_...",
+  "buyer": "0x...",
+  "seller": "0x...",
+  "amount": "...",
+  "tx_hash": "0x...",
+  "input_hash": "0x...",
+  "output_hash": "0x...",
+  "status": "succeeded",
+  "timestamp": "..."
+}
+```
+
+The payment transaction itself is the primary on-chain proof.
+
+Do not create unnecessary extra blockchain transactions purely to inflate transaction counts.
+
+A custom on-chain receipt registry should only be introduced later if it provides an actual product benefit.
+
+---
+
+# 23. ERC-8004 Integration
+
+ERC-8004 is used to make seller agents identifiable.
+
+GOAT's current ERC-8004 implementation provides identity and reputation registry surfaces, and GOAT mainnet is included in the documented deployment set.
+
+Each verified seller listing should display:
+
+* Agent ID
+* Owner wallet
+* Agent URI
+* Registration network
+* Reputation signals when available
+
+Potential later use:
+
+After a successful purchase, the buyer may submit a reputation signal.
+
+This should not automatically happen after every transaction because the goal is meaningful reputation, not artificial extra transactions.
+
+---
+
+# 24. Search and Discovery
+
+Human search filters:
+
+* Category
+* Price
+* Seller
+* Rating
+* Usage
+* Response time
+* Verified identity
+* Availability
+
+Agent search filters:
+
+* Capability tags
+* Maximum price
+* Required input schema
+* Output type
+* ERC-8004 requirement
+* Minimum successful invocation count
+* Maximum latency
+* Availability
+
+Ranking should initially use:
+
+1. Relevance
+2. Successful paid usage
+3. Reliability
+4. Repeat usage
+5. Seller reputation
+
+Do not rank primarily by who paid for promotion during MVP.
+
+---
+
+# 25. Initial Service Categories
+
+The MVP should stay focused.
+
+Recommended categories:
+
+### Developer Tools
+
+* Code review
+* Smart contract explanation
+* Transaction decoding
+* Repository analysis
+* Documentation assistance
+
+### Research and Data
+
+* Web research
+* Blockchain activity summaries
+* Structured market data
+* Dataset transformation
+
+### Agent Operations
+
+* Memory cleanup
+* Workflow planning
+* Output verification
+* Structured extraction
+
+### GOAT-Native Services
+
+* Address activity summaries
+* Transaction explanation
+* Contract analysis
+* Ecosystem data queries
+
+---
+
+# 26. First-Party Seed Services
+
+An empty marketplace is not acceptable.
+
+Before inviting external builders, launch with 3 to 5 working first-party services.
+
+Suggested seed set:
+
+## WalletLens
+
+Input:
+GOAT address
+
+Output:
+Structured wallet activity summary
+
+## TxExplain
+
+Input:
+GOAT transaction hash
+
+Output:
+Human and machine-readable transaction explanation
+
+## ContractLens
+
+Input:
+Contract address
+
+Output:
+Contract behavior summary and basic risk signals
+
+## RepoBrief
+
+Input:
+Public repository
+
+Output:
+Technical project summary and architecture breakdown
+
+## ResearchBrief
+
+Input:
+Research question
+
+Output:
+Structured research result
+
+These exist to:
+
+* Validate payment flows
+* Demonstrate seller UX
+* Generate initial product demos
+* Test agent discovery
+* Establish reliability
+
+They must not become the sole source of grant metrics.
+
+External usage and external sellers matter more.
+
+---
+
+# 27. Seller Dashboard
+
+Seller dashboard should show:
+
+### Overview
+
+* Revenue
+* Successful calls
+* Unique buyers
+* Repeat buyers
+* Active services
+
+### Services
+
+For each service:
+
+* Price
+* Status
+* Calls
+* Revenue
+* Unique payers
+* Success rate
+* Median latency
+
+### Transactions
+
+Each payment:
+
+* Buyer
+* Service
+* Amount
+* Asset
+* Transaction hash
+* Timestamp
+* Status
+* Explorer link
+
+### Integration
+
+* Endpoint
+* Manifest
+* MCP information
+* Merchant configuration
+* Health status
+
+---
+
+# 28. Public Metrics Dashboard
+
+The public metrics page is one of the most important grant assets.
+
+Headline numbers:
+
+```text
+Mainnet Paid Invocations
+Unique External Payers
+External Payment Volume
+Active Sellers
+Live Services
+Seller Revenue
+Repeat Usage Rate
+```
+
+Charts:
+
+* Paid transactions by day
+* Unique payers by day
+* Volume by day
+* Transactions by service
+* Revenue by seller
+
+Public activity feed:
+
+```text
+Paid invocation
+Service: ContractLens
+Amount: $0.10
+Buyer: 0x12...9A
+Seller: 0x84...EF
+Status: Successful
+Tx: View on GOAT Explorer
+```
+
+Metrics refresh target:
+
+**30 to 60 seconds**
+
+---
+
+# 29. External vs Internal Activity
+
+A public toggle should exist:
+
+```text
+External Activity
+All Activity
+Internal / Test Activity
+```
+
+Default:
+
+**External Activity**
+
+Known project wallets should never inflate the primary metric.
+
+This becomes an important trust signal when presenting the product to GOAT.
+
+---
+
+# 30. Frontend Requirements
+
+Recommended stack:
+
+* Next.js
+* TypeScript
+* Tailwind CSS
+* wagmi / viem
+* WalletConnect compatible wallet connection
+
+Core routes:
+
+```text
+/
+ /market
+ /service/[slug]
+ /sell
+ /dashboard
+ /dashboard/services
+ /dashboard/transactions
+ /metrics
+ /activity
+ /docs
+```
+
+The UI should feel like developer infrastructure, not a consumer NFT marketplace.
+
+Avoid:
+
+* excessive gradients
+* fake trading dashboards
+* token speculation
+* gamification unrelated to usage
+* crypto buzzword overload
+
+---
+
+# 31. Backend Requirements
+
+Recommended:
+
+* Node.js
+* TypeScript
+* Fastify or equivalent API framework
+* PostgreSQL
+* Redis for caching/jobs if required
+* Background worker for endpoint health and transaction reconciliation
+
+Core services:
+
+```text
+Auth Service
+Seller Service
+Catalog Service
+Payment Service
+Invocation Gateway
+Metrics Service
+Identity Service
+Health Monitor
+Indexer / Reconciliation Worker
+```
+
+---
+
+# 32. Suggested Architecture
+
+```mermaid
+flowchart LR
+    A[Human User / Buyer Agent] --> B[Marketplace Web + MCP]
+    B --> C[Invocation Gateway]
+    C --> D[GOAT Flow / x402]
+    D --> E[GOAT Mainnet]
+    E --> F[Seller Wallet]
+    D --> C
+    C --> G[Seller Agent / API / MCP]
+    G --> C
+    C --> A
+
+    H[ERC-8004 Registry] --> B
+    H --> C
+
+    C --> I[PostgreSQL]
+    E --> J[Chain Indexer]
+    J --> I
+    I --> K[Public Metrics Dashboard]
+    I --> L[Seller Dashboard]
+```
+
+---
+
+# 33. Database Model
+
+## users
+
+```text
+id
+wallet_address
+created_at
+last_seen_at
+```
+
+## sellers
+
+```text
+id
+user_id
+display_name
+status
+created_at
+```
+
+## agent_identities
+
+```text
+id
+seller_id
+network
+registry_address
+agent_id
+agent_uri
+owner_wallet
+verified_at
+```
+
+## services
+
+```text
+id
+seller_id
+slug
+name
+description
+category
+endpoint
+method
+input_schema
+output_schema
+price
+asset
+network
+status
+health_status
+created_at
+```
+
+## merchant_configs
+
+```text
+id
+seller_id
+merchant_id
+encrypted_api_key
+encrypted_api_secret
+receiving_wallet
+environment
+```
+
+## invocations
+
+```text
+id
+service_id
+buyer_wallet
+order_id
+tx_hash
+amount
+asset
+status
+input_hash
+output_hash
+payment_confirmed_at
+execution_started_at
+execution_completed_at
+latency_ms
+is_internal
+created_at
+```
+
+## internal_wallets
+
+```text
+wallet_address
+label
+reason
+```
+
+## metrics_snapshots
+
+```text
+timestamp
+external_transactions
+unique_external_payers
+volume
+active_services
+active_sellers
+seller_revenue
+repeat_payer_rate
+```
+
+---
+
+# 34. API Surface
+
+## Public
+
+```text
+GET  /v1/services
+GET  /v1/services/:slug
+GET  /v1/services/:slug/metrics
+GET  /v1/metrics
+GET  /v1/activity
+GET  /v1/invocations/:id
+```
+
+## Invocation
+
+```text
+POST /v1/services/:slug/invoke
+```
+
+Possible response:
+
+```text
+402 Payment Required
+```
+
+After successful settlement:
+
+```text
+200 OK
+```
+
+with execution result.
+
+## Seller
+
+```text
+POST   /v1/seller/services
+PATCH  /v1/seller/services/:id
+DELETE /v1/seller/services/:id
+POST   /v1/seller/services/:id/test
+POST   /v1/seller/services/:id/publish
+GET    /v1/seller/metrics
+GET    /v1/seller/transactions
+```
+
+## Identity
+
+```text
+POST /v1/identity/link
+POST /v1/identity/register
+GET  /v1/identity/:agentId
+```
+
+## MCP
+
+```text
+/mcp
+```
+
+---
+
+# 35. Authentication
+
+Human authentication:
+
+1. Request nonce
+2. User signs nonce with wallet
+3. Backend verifies signature
+4. Session is created
+
+Seller secrets must never be exposed client-side.
+
+Merchant API keys and seller endpoint credentials should be:
+
+* Encrypted at rest
+* Decrypted only in backend execution context
+* Never returned through public APIs
+* Redacted from logs
+
+---
+
+# 36. Payment Idempotency
+
+One service invocation must never accidentally create duplicate payments.
+
+Each invocation receives an idempotency key.
+
+Retrying an invocation after network failure should attempt to reconcile the existing payment before requesting a new payment.
+
+GOAT's current runtime and payment tooling includes idempotent execution concepts, so the marketplace should preserve that same operational discipline.
+
+---
+
+# 37. Endpoint Security
+
+Because sellers can add external endpoints, the gateway must protect against SSRF and malicious endpoints.
+
+Requirements:
+
+* Reject localhost
+* Reject private IP ranges
+* Validate DNS
+* Revalidate redirect targets
+* Restrict protocols to HTTPS in production
+* Maximum request size
+* Maximum response size
+* Execution timeout
+* Content-type validation
+* Rate limiting
+* Per-service concurrency limit
+
+Seller-provided authentication secrets must be encrypted.
+
+---
+
+# 38. Payment and Fulfillment Security
+
+Before execution:
+
+* Verify network
+* Verify payer
+* Verify recipient
+* Verify asset
+* Verify amount
+* Verify transaction status
+* Verify invocation has not already been fulfilled
+
+After execution:
+
+* Store output hash
+* Store execution status
+* Update analytics
+* Never expose seller secrets
+
+---
+
+# 39. Service Failure After Payment
+
+This needs explicit handling.
+
+If payment succeeds but service execution fails:
+
+1. Invocation becomes `EXECUTION_FAILED`
+2. Failure is excluded from successful paid invocation metrics
+3. Seller is notified
+4. Buyer sees clear failure status
+5. Refund workflow becomes available
+
+MVP refund:
+
+**seller-initiated one-click refund**
+
+Future:
+
+**policy-driven automatic refund**
+
+Refunds should be transparent and linked to the original invocation.
+
+---
+
+# 40. Reliability Targets
+
+MVP targets:
+
+* Marketplace API uptime: 99%+
+* Payment reconciliation reliability: 99%+
+* Payment-to-fulfillment success: 95%+
+* Metrics update delay: under 60 seconds
+* Duplicate fulfillment: 0
+* Duplicate payment caused by platform retry: 0
+* Seller endpoint health monitoring: every 5 minutes
+
+---
+
+# 41. Pricing Model for Seller Services
+
+MVP pricing:
+
+**Fixed price per invocation**
+
+Seller selects a price.
+
+Recommended pilot range:
+
+```text
+$0.01 to $1.00 equivalent per call
+```
+
+depending on service cost and value.
+
+Later pricing models:
+
+* Dynamic pricing
+* Compute-based pricing
+* Output-size pricing
+* Subscription access
+* Prepaid credits
+* Bundled agent workflows
+
+Do not implement those during MVP.
+
+---
+
+# 42. Marketplace Business Model
+
+The MVP should optimize for usage before platform take rate.
+
+## Phase 1
+
+**0% marketplace take rate**
+
+Seller receives service payment.
+
+Goal:
+
+* Remove onboarding friction
+* Prove economic activity
+* Build seller supply
+* Generate transaction data
+
+## Phase 2
+
+Introduce platform revenue through one or more of:
+
+* Pro seller analytics
+* Hosted gateway plan
+* Priority API limits
+* Enterprise routing
+* Service verification
+* Managed onboarding
+* Marketplace fee if a clean non-custodial implementation is available
+
+Do not add payment splitting architecture to the MVP solely to monetize the marketplace.
+
+The immediate economic proof is that real sellers earn real money through the product.
+
+---
+
+# 43. Why Sellers Will Join
+
+The pitch should not be:
+
+> Join another marketplace
+
+The pitch should be:
+
+> You already built the agent. We help you turn it into a paid GOAT service, get discovered, generate real transactions, and show live usage metrics.
+
+For GOAT grant candidates:
+
+> You can use the marketplace to prove real payments and real usage instead of submitting only a demo.
+
+This is valuable regardless of whether the seller ultimately receives a grant.
+
+---
+
+# 44. User Acquisition Strategy
+
+Initial acquisition is founder-led and Developer Advocate-led.
+
+## Channel 1: Existing Builder Outreach
+
+Builders already being introduced to GOAT become the first seller pipeline.
+
+Target:
+
+Mature AI builders with:
+
+* Working MVP
+* Existing service
+* Clear use case
+* Revenue path
+* Agent component
+
+## Channel 2: GOAT Grant Candidates
+
+When a builder has a strong product but weak transaction evidence:
+
+> Add one useful paid capability to Agent Commerce Hub and test it with real users.
+
+## Channel 3: Existing Hackathon Builders
+
+Target agent products from:
+
+* Web3 hackathons
+* AI hackathons
+* Agent hackathons
+* Other blockchain ecosystems
+
+The pitch is not to rebuild on GOAT.
+
+The pitch is:
+
+> Keep your existing product and add GOAT as an economic rail.
+
+## Channel 4: X / Twitter
+
+Content should showcase:
+
+* New services
+* Real payments
+* Seller earnings
+* New builders
+* Transaction milestones
+
+## Channel 5: Reddit
+
+Participate in AI agent, developer tooling, automation, and Web3 developer communities.
+
+Do not spam grant links.
+
+Lead with technical usefulness.
+
+---
+
+# 45. Builder Onboarding Playbook
+
+For every potential seller:
+
+## Step 1
+
+Qualify product.
+
+Does it have:
+
+* Working product?
+* Useful capability?
+* Agent component?
+* Repeatable use?
+* Revenue potential?
+
+## Step 2
+
+Identify one paid action.
+
+Example:
+
+A research agent may offer:
+
+```text
+Generate structured research brief
+$0.20 / call
+```
+
+## Step 3
+
+Add service to Agent Commerce Hub.
+
+## Step 4
+
+Make first mainnet paid invocation.
+
+## Step 5
+
+Invite the builder's own users.
+
+## Step 6
+
+Track external usage.
+
+## Step 7
+
+Use metrics in their GOAT grant conversation.
+
+This turns Developer Advocate onboarding into a repeatable system.
+
+---
+
+# 46. Product Marketing Flywheel
+
+```text
+Builder joins
+↓
+Builder gets marketplace profile
+↓
+We announce the new service
+↓
+Builder shares service
+↓
+Users try service
+↓
+Transactions happen
+↓
+Public metrics increase
+↓
+We publish real proof
+↓
+More builders see opportunity
+↓
+More builders join
+```
+
+This means marketing does not depend on generic promotional content.
+
+The product continuously creates material worth talking about.
+
+---
+
+# 47. Content Strategy
+
+Good content:
+
+> Three external AI agents joined Agent Commerce Hub this week and generated 84 paid GOAT mainnet calls
+
+Good content:
+
+> This coding agent earned its first payment through GOAT today
+
+Good content:
+
+> Here's the transaction where one autonomous agent paid another service
+
+Bad content:
+
+> The future of AI x blockchain is here
+
+Proof should lead the narrative.
+
+---
+
+# 48. MVP Scope
+
+## P0: Must Ship
+
+### Seller
+
+* Wallet login
+* Create seller profile
+* Link ERC-8004 identity
+* Add service
+* Configure price
+* Configure merchant/payment connection
+* Validate endpoint
+* Publish service
+
+### Buyer
+
+* Marketplace
+* Service page
+* Wallet payment
+* Paid invocation
+* Result delivery
+
+### Agent
+
+* Machine-readable service registry
+* MCP discovery
+* Paid invocation flow
+
+### Payment
+
+* GOAT mainnet
+* GOAT Flow/x402
+* Direct seller settlement where possible
+* Backend confirmation
+* Idempotency
+
+### Metrics
+
+* Paid calls
+* Tx count
+* Unique external payers
+* Volume
+* Seller revenue
+* Active services
+* Explorer links
+* Internal wallet filtering
+
+### Operations
+
+* Health checks
+* Error tracking
+* Admin listing control
+
+---
+
+# 49. P1 Features
+
+After core transaction activity works:
+
+* ERC-8004 reputation
+* Service reviews
+* Seller verification
+* CLI onboarding
+* SDK
+* Service analytics
+* Retry policy
+* Refund automation
+* Agent spending policies
+* Usage alerts
+* Better ranking
+
+---
+
+# 50. P2 Features
+
+Do not build before traction:
+
+* Agent-to-agent negotiation
+* Dynamic bidding
+* Bundled multi-agent workflows
+* Subscription billing
+* Agent service composition
+* Automatic routing by price/reputation
+* Revenue sharing
+* Escrow
+* SLA contracts
+* Multi-chain buyers
+* Autonomous marketplace agent
+
+---
+
+# 51. Explicit Non-Goals for MVP
+
+Do not build:
+
+* A new token
+* An NFT system
+* DAO governance
+* Custom blockchain
+* Complex escrow
+* Full decentralized marketplace contracts
+* Generic chat interface
+* Social feed
+* Referral points
+* Token rewards
+* Artificial transaction incentives
+* Transaction farming
+* Multi-chain settlement
+
+All of these distract from proving the core loop.
+
+---
+
+# 52. MVP Technical Sequence
+
+```mermaid
+sequenceDiagram
+    participant Buyer as Buyer Agent
+    participant Hub as Agent Commerce Hub
+    participant Flow as GOAT Flow
+    participant Chain as GOAT Mainnet
+    participant Seller as Seller Agent
+
+    Buyer->>Hub: Invoke Service
+    Hub->>Flow: Create Payment Requirement
+    Flow-->>Hub: Payment Challenge
+    Hub-->>Buyer: 402 Payment Required
+    Buyer->>Chain: Pay Seller
+    Chain-->>Flow: Settlement
+    Flow-->>Hub: Payment Confirmed
+    Hub->>Seller: Execute Request
+    Seller-->>Hub: Result
+    Hub-->>Buyer: Result + Receipt
+    Hub->>Hub: Update Metrics
+```
+
+---
+
+# 53. Implementation Roadmap
+
+## Phase 0: Technical Spike
+
+**Target: 1 to 2 days**
+
+Prove:
+
+* GOAT Flow test payment
+* Mainnet configuration
+* Seller receives payment
+* Backend confirms transaction
+* ERC-8004 lookup
+* AgentKit connectivity
+
+No frontend polish.
+
+## Phase 1: Single Seller Vertical Slice
+
+**Target: 3 to 4 days**
+
+Build:
+
+* One seller
+* One paid service
+* One buyer
+* x402 payment
+* GOAT mainnet settlement
+* Successful fulfillment
+* Transaction receipt
+* Basic metrics
+
+Exit condition:
+
+**One external wallet pays for a real service on mainnet and gets a result**
+
+## Phase 2: Marketplace
+
+**Target: 3 to 4 days**
+
+Build:
+
+* Seller onboarding
+* Multiple services
+* Browse/search
+* Service page
+* Seller profile
+* Pricing
+
+## Phase 3: Agent-Native Access
+
+**Target: 2 to 3 days**
+
+Build:
+
+* Machine-readable manifests
+* MCP server
+* AgentKit example buyer
+* Automated invocation
+
+## Phase 4: Metrics
+
+**Target: 2 days**
+
+Build:
+
+* Public dashboard
+* Seller dashboard
+* External/internal separation
+* Explorer links
+* Revenue metrics
+
+## Phase 5: External Builder Pilot
+
+**Target: 5 to 7 days**
+
+Onboard:
+
+* Minimum 3 external builders
+* Minimum 5 external services
+
+Generate real usage.
+
+## Phase 6: Grant Proof Package
+
+**Target: 1 to 2 days**
+
+Prepare:
+
+* Demo video
+* README
+* Architecture
+* Metrics
+* Explorer transactions
+* User proof
+* Seller proof
+* Application
+
+---
+
+# 54. Development Priority Rule
+
+Every engineering task should answer at least one of these:
+
+1. Does it help a seller join?
+2. Does it help a buyer use a service?
+3. Does it create or enable a real transaction?
+4. Does it prove real usage?
+5. Does it increase repeat usage?
+
+If the answer is no to all five, it probably does not belong in the pre-grant MVP.
+
+---
+
+# 55. Grant Submission Demo
+
+The demo should not start with slides.
+
+Start with the product.
+
+## Scene 1: External Builder
+
+Show a real external AI agent product.
+
+> This builder already had an AI service before joining us
+
+## Scene 2: Seller Onboarding
+
+Add their existing endpoint.
+
+Link ERC-8004 identity.
+
+Set price.
+
+Publish.
+
+## Scene 3: Agent Discovery
+
+Open an autonomous buyer agent.
+
+Ask:
+
+> Find a service that can perform X under $0.20
+
+Agent discovers the external builder's service.
+
+## Scene 4: Payment
+
+Agent invokes.
+
+Show:
+
+```text
+402 Payment Required
+```
+
+Agent pays.
+
+## Scene 5: Mainnet
+
+Open GOAT Explorer.
+
+Show the actual transaction.
+
+Show:
+
+* Buyer
+* Seller
+* Amount
+* Timestamp
+
+## Scene 6: Fulfillment
+
+Return the actual service result.
+
+## Scene 7: Metrics
+
+Refresh public dashboard.
+
+Show transaction count increment.
+
+## Scene 8: Economic Proof
+
+Show:
+
+* External sellers
+* External unique payers
+* Transactions
+* Seller revenue
+* Repeat users
+
+Final line:
+
+> Every number on this page comes from real usage of real agent services on GOAT mainnet
+
+---
+
+# 56. Grant Proof Package
+
+Before application, have all of the following live:
+
+### Product
+
+* Live production URL
+* Working marketplace
+* Multiple seller services
+* Machine-readable access
+
+### Code
+
+* Public GitHub repository
+* Clean README
+* Architecture diagram
+* Setup instructions
+* GOAT integration documentation
+
+### Mainnet Proof
+
+* Explorer links
+* Seller receiving wallets
+* Mainnet transaction examples
+
+### Metrics
+
+* Public metrics dashboard
+* External user filtering
+* Methodology
+
+### Users
+
+* External sellers
+* External buyers
+* Testimonials or short builder quotes
+
+### Media
+
+* 90 to 150 second demo
+* Short product walkthrough
+* Screenshots
+
+---
+
+# 57. README Structure
+
+```text
+# Agent Commerce Hub
+
+One sentence
+
+## The Problem
+
+## What We Built
+
+## Why GOAT
+
+## Live Metrics
+
+## How It Works
+
+## Real Mainnet Transactions
+
+## For Sellers
+
+## For Buyer Agents
+
+## Architecture
+
+## GOAT Flow / x402 Integration
+
+## ERC-8004 Integration
+
+## MCP Integration
+
+## Metrics Methodology
+
+## Run Locally
+
+## Roadmap
+
+## Links
+```
+
+The README should lead with usage and transaction evidence rather than technical complexity.
+
+---
+
+# 58. Example Grant Pitch
+
+**Agent Commerce Hub turns existing AI agents into paid services on GOAT Network.**
+
+Builders can publish an AI agent, API, or MCP service, attach a pay-per-use price, link an ERC-8004 identity, and make the service discoverable by humans and autonomous agents.
+
+When a buyer agent invokes a service, payment is handled through GOAT Flow/x402 and settles on GOAT mainnet before the requested service is fulfilled.
+
+The result is a marketplace where actual product usage directly becomes measurable economic activity.
+
+The initial supply is built through direct builder onboarding. Instead of asking projects to rebuild on GOAT from scratch, we help existing AI-native products add GOAT as their payment and commerce layer.
+
+The public metrics dashboard separates external activity from internal testing and exposes verified mainnet transactions, unique payers, service usage, volume, and seller revenue.
+
+Our goal is not to create transactions for the sake of transactions.
+
+Our goal is to make useful AI services economically usable, with every legitimate paid interaction contributing real activity to GOAT Network.
+
+---
+
+# 59. Competitive Differentiation
+
+## Versus a normal x402 integration
+
+A normal x402 integration gives one application payments.
+
+Agent Commerce Hub gives many independent builders:
+
+* Payments
+* Discovery
+* Distribution
+* Identity
+* Machine-readable access
+* Metrics
+
+## Versus a normal marketplace
+
+A normal marketplace expects humans to browse and purchase.
+
+Agent Commerce Hub supports machine-native discovery and purchase.
+
+## Versus a toolkit
+
+A toolkit stops at integration.
+
+Agent Commerce Hub operates the live commerce loop.
+
+## Versus a single paid agent API
+
+A single API creates transactions from one product.
+
+Agent Commerce Hub creates a distribution and monetization surface for many independent agent products.
+
+GOAT has already highlighted pay-per-call agent services using x402 and ERC-8004 as a strong fit for its Builder Grants thesis. The differentiation here is that Agent Commerce Hub turns that model into shared commerce infrastructure for multiple independent builders rather than one paid endpoint.
+
+---
+
+# 60. Risks
+
+## Risk: Empty marketplace
+
+Mitigation:
+
+* Launch with first-party services
+* Onboard external builders manually before public launch
+
+## Risk: Fake-looking metrics
+
+Mitigation:
+
+* Publicly separate internal wallets
+* Only headline external activity
+* Link every payment to explorer proof
+
+## Risk: Low buyer demand
+
+Mitigation:
+
+* Target sellers with existing users
+* Ask every seller to bring initial users
+* Build useful seed services
+
+## Risk: Too many tiny meaningless transactions
+
+Mitigation:
+
+* Price for actual service value
+* Do not subsidize or reward transaction farming
+* Optimize repeat utility, not raw transaction count
+
+## Risk: Sellers have unreliable endpoints
+
+Mitigation:
+
+* Health monitoring
+* Uptime status
+* Automatic unlisting after repeated failures
+
+## Risk: Payment succeeds but execution fails
+
+Mitigation:
+
+* Transparent failure handling
+* Refund workflow
+* Reliability metrics
+
+## Risk: Scope explosion
+
+Mitigation:
+
+MVP remains:
+
+**list → discover → pay → execute → measure**
+
+Nothing else.
+
+---
+
+# 61. What Would Make This Grant Application Weak
+
+Do not apply if:
+
+* Only founder wallets have used the product
+* Marketplace only contains first-party tools
+* Product is testnet-only
+* x402 exists only in screenshots
+* Dashboard contains fake seeded metrics
+* There is no external seller
+* There is no external payer
+* Services have no real utility
+* Agent interaction requires manual human intervention at every step
+* Mainnet transaction proof is missing
+* Revenue path is theoretical
+
+---
+
+# 62. What Would Make This Grant Application Strong
+
+Apply when we can truthfully say:
+
+> Five independent AI builders are selling services through the platform
+
+> Twenty-five external wallets or agents have paid for those services
+
+> Hundreds of real paid calls have settled on GOAT mainnet
+
+> Several users have returned and paid more than once
+
+> Multiple sellers have earned real revenue
+
+> Every transaction shown in our dashboard can be independently verified
+
+> Our own project wallets are excluded from headline metrics
+
+> New GOAT builders can go from an existing agent service to their first paid mainnet call through our onboarding flow
+
+At that point the grant application is not asking GOAT to fund an idea.
+
+It is showing GOAT an existing transaction engine that can grow with its builder ecosystem.
+
+---
+
+# 63. Final Product Definition
+
+Agent Commerce Hub is a GOAT-native commerce and distribution layer for AI services.
+
+Builders bring existing agents, APIs, or MCP tools.
+
+The platform makes them discoverable.
+
+ERC-8004 makes the seller agent identifiable.
+
+GOAT Flow/x402 makes the service payable.
+
+GOAT mainnet settles the economic activity.
+
+The gateway delivers the service after verified payment.
+
+The dashboard proves usage.
+
+The builder earns.
+
+The buyer receives useful work.
+
+GOAT receives real, repeatable mainnet activity.
+
+And every new builder introduced into the ecosystem has the potential to become both a new marketplace seller and a new source of users and transactions.
+
+## The core product loop
+
+**Builder joins → Service goes live → Agent discovers it → Agent pays → Service executes → Seller earns → GOAT transaction is created → Metrics improve → More builders join**
+
+That loop is the product.
