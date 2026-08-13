@@ -17,6 +17,7 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",
     "@modelcontextprotocol/sdk": "^1.17.2",
+    "ajv": "^8.17.1",
     "drizzle-orm": "^0.45.2",
     "ethers": "^6.17.0",
     "goatflow-sdk": "^0.2.1",

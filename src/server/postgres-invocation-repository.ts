@@ -1,5 +1,5 @@
 import { and, desc, eq } from "drizzle-orm";
-import { getServiceById } from "@/data/services";
+import { findPublishedServiceById } from "@/server/catalog";
 import { assertTransition } from "@/domain/invocation-machine";
 import type { InvocationRecord, InvocationStatus, PaymentOrder, PaymentProof } from "@/domain/types";
 import { getDatabase } from "@/db/client";
@@ -48,7 +48,7 @@ export class PostgresInvocationRepository implements InvocationRepository {
 
   async create(record: InvocationRecord) {
     await ensureCatalogSeeded();
-    const service = getServiceById(record.serviceId);
+    const service = await findPublishedServiceById(record.serviceId);
     if (!service) throw new Error(`Service not found: ${record.serviceId}`);
 
     const rows = await getDatabase().insert(invocations).values({

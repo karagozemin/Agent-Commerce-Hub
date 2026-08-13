@@ -38,15 +38,20 @@ export const sellers = pgTable("sellers", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [uniqueIndex("sellers_user_idx").on(table.userId)]);
 
-export const agentIdentities = pgTable("agent_identities", {
+export const merchantConfigs = pgTable("merchant_configs", {
   id: text("id").primaryKey(),
-  sellerId: text("seller_id").references(() => sellers.id).notNull(),
+  sellerId: text("seller_id").references(() => sellers.id).notNull().unique(),
+  merchantId: text("merchant_id").notNull(),
+  apiUrl: text("api_url").notNull(),
+  encryptedApiKey: text("encrypted_api_key").notNull(),
+  encryptedApiSecret: text("encrypted_api_secret").notNull(),
+  receivingWallet: text("receiving_wallet").notNull(),
   network: text("network").notNull(),
-  registryAddress: text("registry_address").notNull(),
-  agentId: text("agent_id").notNull(),
-  agentUri: text("agent_uri").notNull(),
-  ownerWallet: text("owner_wallet").notNull(),
+  receiveType: text("receive_type"),
+  supportedTokens: jsonb("supported_tokens"),
   verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const serviceRecords = pgTable("services", {
@@ -60,14 +65,31 @@ export const serviceRecords = pgTable("services", {
   method: text("method").default("POST").notNull(),
   inputSchema: jsonb("input_schema").notNull(),
   outputSchema: jsonb("output_schema").notNull(),
+  testInput: jsonb("test_input").notNull(),
   price: numeric("price").notNull(),
   amountWei: text("amount_wei").notNull(),
   asset: text("asset").notNull(),
   network: text("network").notNull(),
   status: text("status").default("draft").notNull(),
   healthStatus: text("health_status").default("unknown").notNull(),
+  endpointVerifiedAt: timestamp("endpoint_verified_at", { withTimezone: true }),
+  endpointLatencyMs: integer("endpoint_latency_ms"),
+  endpointLastError: text("endpoint_last_error"),
   receivingWallet: text("receiving_wallet").notNull(),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const agentIdentities = pgTable("agent_identities", {
+  id: text("id").primaryKey(),
+  sellerId: text("seller_id").references(() => sellers.id).notNull(),
+  serviceId: text("service_id").references(() => serviceRecords.id).unique(),
+  network: text("network").notNull(),
+  registryAddress: text("registry_address").notNull(),
+  agentId: text("agent_id").notNull(),
+  agentUri: text("agent_uri").notNull(),
+  ownerWallet: text("owner_wallet").notNull(),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
 });
 
 export const invocations = pgTable("invocations", {

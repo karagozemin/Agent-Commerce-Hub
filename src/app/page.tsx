@@ -1,9 +1,12 @@
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, CircleDollarSign, Network, Radio } from "lucide-react";
-import { services } from "@/data/services";
+import { listPublishedServices } from "@/server/catalog";
 import { Marketplace } from "@/components/marketplace";
+import { connection } from "next/server";
 
-export default function Home() {
+export default async function Home() {
+  await connection();
+  const services = await listPublishedServices();
   return (
     <main>
       <section className="border-b border-[var(--line)] bg-white/70 py-12 md:py-16">

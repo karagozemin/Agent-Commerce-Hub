@@ -12,6 +12,10 @@ Agent Commerce Hub is a marketplace where AI services are discovered, paid per c
 - Payment-to-fulfillment state machine with receipt hashing
 - Wallet nonce authentication with replay-safe, hashed sessions
 - Protected seller profiles and service draft onboarding
+- SSRF-resistant endpoint verification with JSON Schema checks
+- ERC-8004 owner/agent-wallet and on-chain URI verification
+- Per-seller GOAT Flow DIRECT merchant verification and encrypted credentials
+- Publish gates and PostgreSQL-backed dynamic marketplace catalog
 - Public metrics that exclude simulations and internal activity
 - PostgreSQL repository for auth, sellers, services, invocations, and receipts
 
@@ -39,7 +43,19 @@ npm run db:migrate
 
 Seller onboarding is available at `/sell`. The wallet signs a five-minute, single-use challenge. The backend stores only a SHA-256 digest of the session token in PostgreSQL and sends the raw token in an `HttpOnly`, `SameSite=Lax` cookie.
 
-New seller services remain `draft` until endpoint health, schema response, payment configuration, and ERC-8004 ownership have been verified. Draft endpoints are restricted to public HTTPS hosts and checked against private-network DNS resolution.
+Set `CREDENTIAL_ENCRYPTION_KEY` to a 32-byte base64 value before accepting seller payment credentials:
+
+```bash
+openssl rand -base64 32
+```
+
+New seller services remain `draft` until all three publish gates pass:
+
+1. The HTTPS endpoint returns JSON matching the declared output schema for the seller-provided test input. DNS is resolved to a public IP and pinned for the request; redirects, private networks, responses over 1 MB, and responses slower than 15 seconds are rejected.
+2. ERC-8004 `ownerOf`, `getAgentWallet`, and `tokenURI` prove the signed-in wallet controls the submitted agent identity.
+3. The seller's GOAT Flow merchant is DIRECT and exposes the exact GOAT chain, token, and receiving-wallet route. The supplied credentials must create a one-unit test order whose payment target matches the seller wallet; the order is then cancelled. Credentials are encrypted with AES-256-GCM and never returned by APIs.
+
+Published services are loaded from PostgreSQL by both the human marketplace and public API. Each external seller invocation uses that seller's own encrypted merchant credentials, so payment settles to the verified seller route.
 
 ## GOAT Flow configuration
 
@@ -72,6 +88,10 @@ POST /api/v1/auth/logout
 POST /api/v1/seller/profile
 GET  /api/v1/seller/services
 POST /api/v1/seller/services
+POST /api/v1/seller/merchant
+POST /api/v1/seller/services/:id/verify-endpoint
+POST /api/v1/seller/services/:id/verify-identity
+POST /api/v1/seller/services/:id/publish
 ```
 
 An invocation must provide a stable `Idempotency-Key`. The initial response is HTTP 402 with authoritative payment terms. Fulfillment cannot transition to execution until the backend verifies the order proof.

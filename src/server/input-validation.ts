@@ -1,4 +1,5 @@
 import type { ServiceManifest } from "@/domain/types";
+import { assertMatchesSchema, compileJsonSchema } from "./schema-validation";
 
 const addressPattern = /^0x[a-fA-F0-9]{40}$/;
 const transactionPattern = /^0x[a-fA-F0-9]{64}$/;
@@ -9,6 +10,10 @@ export function validateServiceInput(service: ServiceManifest, input: unknown) {
   }
 
   const value = input as Record<string, unknown>;
+  if (!['wallet-lens', 'tx-explain', 'contract-lens', 'repo-brief'].includes(service.slug)) {
+    assertMatchesSchema(compileJsonSchema(service.inputSchema, "Input"), input, "Service input");
+    return;
+  }
   switch (service.slug) {
     case "wallet-lens":
       if (typeof value.address !== "string" || !addressPattern.test(value.address)) {

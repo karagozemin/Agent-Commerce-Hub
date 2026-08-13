@@ -2,25 +2,31 @@ import { GoatFlowClient } from "goatflow-sdk-server";
 import { env } from "@/config/env";
 import type { PaymentOrder, PaymentProof } from "@/domain/types";
 import type { CreatePaymentInput, PaymentProvider } from "./provider";
+import type { ServiceManifest } from "@/domain/types";
+import { sellerRepository } from "@/server/seller/repository";
+import { decryptCredential } from "@/server/credential-crypto";
 
 export class GoatFlowPaymentProvider implements PaymentProvider {
-  private readonly client: GoatFlowClient;
-
-  constructor() {
-    if (!env.GOATX402_API_KEY || !env.GOATX402_API_SECRET) {
-      throw new Error("GOAT Flow credentials are required when PAYMENT_PROVIDER=goat-flow");
+  private async clientFor(service: ServiceManifest) {
+    if (service.sellerId) {
+      const config = await sellerRepository.findMerchantConfig(service.sellerId);
+      if (!config?.verifiedAt) throw new Error("Seller merchant configuration is not verified");
+      return new GoatFlowClient({
+        baseUrl: config.apiUrl,
+        apiKey: decryptCredential(config.encryptedApiKey),
+        apiSecret: decryptCredential(config.encryptedApiSecret),
+      });
     }
-    this.client = new GoatFlowClient({
-      baseUrl: env.GOATX402_API_URL,
-      apiKey: env.GOATX402_API_KEY,
-      apiSecret: env.GOATX402_API_SECRET,
-    });
+    if (!env.GOATX402_API_KEY || !env.GOATX402_API_SECRET) throw new Error("GOAT Flow credentials are required for first-party services");
+    return new GoatFlowClient({ baseUrl: env.GOATX402_API_URL, apiKey: env.GOATX402_API_KEY, apiSecret: env.GOATX402_API_SECRET });
   }
 
   async createOrder({ invocationId, buyerWallet, service }: CreatePaymentInput): Promise<PaymentOrder> {
-    const order = await this.client.createOrder({
+    const client = await this.clientFor(service);
+    const chainId = service.network === "goat-mainnet" ? 2345 : 48816;
+    const order = await client.createOrder({
       dappOrderId: invocationId,
-      chainId: env.GOAT_CHAIN_ID,
+      chainId,
       tokenSymbol: service.pricing.asset,
       fromAddress: buyerWallet,
       amountWei: service.pricing.amountWei,
@@ -43,13 +49,14 @@ export class GoatFlowPaymentProvider implements PaymentProvider {
     };
   }
 
-  async confirmOrder(order: PaymentOrder): Promise<PaymentProof> {
-    const status = await this.client.getOrderStatus(order.orderId);
+  async confirmOrder(order: PaymentOrder, service: ServiceManifest): Promise<PaymentProof> {
+    const client = await this.clientFor(service);
+    const status = await client.getOrderStatus(order.orderId);
     if (status.status !== "PAYMENT_CONFIRMED" && status.status !== "INVOICED") {
       throw new Error(`Payment is not confirmed: ${status.status}`);
     }
 
-    const proof = await this.client.getOrderProof(order.orderId);
+    const proof = await client.getOrderProof(order.orderId);
     return {
       orderId: proof.payload.order_id,
       txHash: proof.payload.tx_hash as `0x${string}`,

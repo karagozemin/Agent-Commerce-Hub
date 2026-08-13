@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { hashPayload } from "@/domain/hash";
 import type { InvocationReceipt, PaymentOrder, PaymentProof, ServiceManifest } from "@/domain/types";
-import { getServiceById, getServiceBySlug } from "@/data/services";
+import { findPublishedServiceById, findPublishedServiceBySlug } from "./catalog";
 import { executeService } from "./executor";
 import { getPaymentProvider } from "./payment";
 import type { PaymentProvider } from "./payment/provider";
@@ -22,7 +22,7 @@ export class InvocationService {
     idempotencyKey: string;
     payload: unknown;
   }) {
-    const service = getServiceBySlug(input.slug);
+    const service = await findPublishedServiceBySlug(input.slug);
     if (!service) throw new Error("Service not found");
     if (service.availability !== "online") throw new Error("Service is not available");
     validateServiceInput(service, input.payload);
@@ -74,9 +74,9 @@ export class InvocationService {
       throw new Error(`Invocation cannot be confirmed from ${invocation.status}`);
     }
 
-    const service = getServiceById(invocation.serviceId);
+    const service = await findPublishedServiceById(invocation.serviceId);
     if (!service) throw new Error("Service not found");
-    const proof = await this.payments.confirmOrder(paymentOrder);
+    const proof = await this.payments.confirmOrder(paymentOrder, service);
     this.assertProof(paymentOrder, proof, service);
     await this.repository.setPaymentProof(id, proof);
     invocation = await this.repository.transition(id, "PAYMENT_CONFIRMED");

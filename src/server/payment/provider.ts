@@ -8,5 +8,5 @@ export interface CreatePaymentInput {
 
 export interface PaymentProvider {
   createOrder(input: CreatePaymentInput): Promise<PaymentOrder>;
-  confirmOrder(order: PaymentOrder): Promise<PaymentProof>;
+  confirmOrder(order: PaymentOrder, service: ServiceManifest): Promise<PaymentProof>;
 }

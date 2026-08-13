@@ -1,13 +1,11 @@
 import { notFound } from "next/navigation";
 import { BadgeCheck, Clock3, ExternalLink, Radio, Repeat2, ShieldCheck } from "lucide-react";
-import { services, getServiceBySlug } from "@/data/services";
+import { findPublishedServiceBySlug } from "@/server/catalog";
 import { InvokePanel } from "@/components/invoke-panel";
-
-export function generateStaticParams() { return services.map((service) => ({ slug: service.slug })); }
 
 export default async function ServicePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const service = getServiceBySlug(slug);
+  const service = await findPublishedServiceBySlug(slug);
   if (!service) notFound();
 
   return <main className="shell py-10">

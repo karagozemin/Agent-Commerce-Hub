@@ -1,6 +1,9 @@
 import type { ServiceManifest } from "@/domain/types";
+import type { RuntimeService } from "./catalog";
+import { callPublicJsonEndpoint } from "./service-endpoint-verifier";
+import { assertMatchesSchema, compileJsonSchema } from "./schema-validation";
 
-export async function executeService(service: ServiceManifest, input: unknown) {
+export async function executeService(service: ServiceManifest | RuntimeService, input: unknown) {
   const data = input as Record<string, string>;
 
   switch (service.slug) {
@@ -31,6 +34,11 @@ export async function executeService(service: ServiceManifest, input: unknown) {
         hotspots: ["Authentication boundary", "Payment reconciliation", "External endpoint validation"],
       };
     default:
-      throw new Error("No executor is configured for this service");
+      if (!("endpoint" in service) || !service.endpoint.startsWith("https://")) {
+        throw new Error("No executor is configured for this service");
+      }
+      const result = await callPublicJsonEndpoint(service.endpoint, input);
+      assertMatchesSchema(compileJsonSchema(service.outputSchema, "Output"), result.body, "Service response");
+      return result.body;
   }
 }

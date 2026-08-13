@@ -51,6 +51,7 @@ export interface ServiceManifest {
   invocationCount: number;
   repeatUsageRate: number;
   paymentProtocol: "x402";
+  sellerId?: string;
 }
 
 export interface PaymentOrder {
