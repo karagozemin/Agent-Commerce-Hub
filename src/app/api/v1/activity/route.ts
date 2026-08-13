@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { invocationRepository } from "@/server/repository";
+import { getPublicActivity } from "@/server/public-metrics";
 
 export async function GET() {
-  const invocations = await invocationRepository.list();
-  return NextResponse.json({ data: invocations.slice(0, 50) });
+  return NextResponse.json({ data: await getPublicActivity() });
 }

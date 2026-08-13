@@ -77,6 +77,7 @@ For mainnet use chain ID `2345`, `https://flow-api.goat.network`, and the matchi
 ```text
 GET  /api/v1/services
 GET  /api/v1/services/:slug
+GET  /api/v1/services/:slug/metrics
 POST /api/v1/services/:slug/invoke
 POST /api/v1/invocations/:id/confirm
 GET  /api/v1/invocations/:id

@@ -1,12 +1,15 @@
-import { Activity, CircleDollarSign, Radio, Users } from "lucide-react";
+import { Activity, CircleDollarSign, Radio, Repeat2, Users } from "lucide-react";
+import { connection } from "next/server";
+import { getPublicMetrics } from "@/server/public-metrics";
 
-const metrics = [
-  { label: "Mainnet paid invocations", value: "0", icon: Activity },
-  { label: "Unique external payers", value: "0", icon: Users },
-  { label: "External payment volume", value: "$0.00", icon: CircleDollarSign },
-  { label: "Live services", value: "4", icon: Radio },
-];
-
-export default function MetricsPage() {
-  return <main className="shell py-12"><p className="eyebrow mb-3">Auditable activity</p><h1 className="text-4xl font-bold">Public metrics</h1><p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">Headline values include only externally initiated, successfully fulfilled GOAT mainnet payments. Local simulations and known project wallets are excluded.</p><div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{metrics.map(({ label, value, icon: Icon }) => <div className="panel p-5" key={label}><Icon size={18} className="mb-5 text-[var(--green)]"/><strong className="block text-3xl">{value}</strong><span className="mt-1 block text-sm text-[var(--muted)]">{label}</span></div>)}</div><section className="mt-8 border-y border-[var(--line)] py-7"><h2 className="mb-3 text-xl font-bold">Methodology</h2><p className="max-w-3xl text-sm leading-7 text-[var(--muted)]">A successful invocation requires a verified payment to the seller, completed service execution, delivered output, and a stored receipt. Every production row must expose its GOAT Explorer transaction hash.</p></section></main>;
+export default async function MetricsPage() {
+  await connection();
+  const data = await getPublicMetrics();
+  const cards = [
+    { label: "Mainnet paid invocations", value: data.mainnetPaidInvocations.toString(), icon: Activity },
+    { label: "Unique external payers", value: data.uniqueExternalPayers.toString(), icon: Users },
+    { label: "External payment volume", value: `$${data.externalPaymentVolume}`, icon: CircleDollarSign },
+    { label: "Live services", value: data.liveServices.toString(), icon: Radio },
+  ];
+  return <main className="shell py-12"><p className="eyebrow mb-3">Auditable activity</p><h1 className="text-4xl font-bold">Public metrics</h1><p className="mt-3 max-w-2xl leading-7 text-[var(--muted)]">Headline values include only externally initiated, successfully fulfilled GOAT mainnet payments. Local simulations and known project wallets are excluded.</p><div className="mt-9 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{cards.map(({ label, value, icon: Icon }) => <div className="panel p-5" key={label}><Icon size={18} className="mb-5 text-[var(--green)]"/><strong className="block text-3xl">{value}</strong><span className="mt-1 block text-sm text-[var(--muted)]">{label}</span></div>)}</div><div className="mt-8 grid gap-4 sm:grid-cols-2"><div className="panel flex items-center gap-4 p-5"><Repeat2 className="text-[var(--amber)]" size={20}/><div><strong className="block text-2xl">{data.repeatUsageRate}%</strong><span className="text-sm text-[var(--muted)]">Repeat payer rate</span></div></div><div className="panel flex items-center gap-4 p-5"><CircleDollarSign className="text-[var(--green)]" size={20}/><div><strong className="block text-2xl">${data.sellerRevenue}</strong><span className="text-sm text-[var(--muted)]">External seller revenue</span></div></div></div><section className="mt-8 border-y border-[var(--line)] py-7"><h2 className="mb-3 text-xl font-bold">Methodology</h2><p className="max-w-3xl text-sm leading-7 text-[var(--muted)]">{data.methodology} Every production row exposes its GOAT Explorer transaction hash.</p></section>{data.topServices.length > 0 && <section className="mt-8"><h2 className="mb-4 text-xl font-bold">Service usage</h2><div className="overflow-x-auto border border-[var(--line)] bg-white"><table className="w-full min-w-[520px] text-left text-sm"><thead className="border-b border-[var(--line)] text-xs uppercase text-[var(--muted)]"><tr><th className="p-4">Service</th><th className="p-4">Paid calls</th><th className="p-4">Volume</th></tr></thead><tbody>{data.topServices.map((service) => <tr className="border-b border-[var(--line)] last:border-0" key={service.slug}><td className="p-4 font-bold">{service.name}</td><td className="p-4">{service.invocations}</td><td className="p-4">${service.volume}</td></tr>)}</tbody></table></div></section>}</main>;
 }
