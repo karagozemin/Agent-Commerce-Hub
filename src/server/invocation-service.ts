@@ -7,8 +7,8 @@ import { getPaymentProvider } from "./payment";
 import type { PaymentProvider } from "./payment/provider";
 import { invocationRepository, type InvocationRepository } from "./repository";
 import { validateServiceInput } from "./input-validation";
-
-const internalWallets = new Set<string>();
+import { acquireServiceSlot, assertInvocationRate } from "./invocation-guards";
+import { isInternalWallet } from "./internal-wallets";
 
 export class InvocationService {
   constructor(
@@ -35,6 +35,7 @@ export class InvocationService {
       }
       return existing;
     }
+    assertInvocationRate(input.buyerWallet);
 
     const now = new Date().toISOString();
     const invocation = await this.repository.create({
@@ -45,7 +46,7 @@ export class InvocationService {
       status: "CREATED",
       input: input.payload,
       inputHash,
-      isInternal: internalWallets.has(input.buyerWallet.toLowerCase()),
+      isInternal: await isInternalWallet(input.buyerWallet),
       createdAt: now,
       updatedAt: now,
     });
@@ -76,11 +77,28 @@ export class InvocationService {
 
     const service = await findPublishedServiceById(invocation.serviceId);
     if (!service) throw new Error("Service not found");
-    const proof = await this.payments.confirmOrder(paymentOrder, service);
-    this.assertProof(paymentOrder, proof, service);
-    await this.repository.setPaymentProof(id, proof);
-    invocation = await this.repository.transition(id, "PAYMENT_CONFIRMED");
-    invocation = await this.repository.transition(id, "EXECUTING");
+    const releaseSlot = acquireServiceSlot(service.id);
+    let proof: PaymentProof;
+    try {
+      proof = await this.payments.confirmOrder(paymentOrder, service);
+    } catch (error) {
+      releaseSlot();
+      throw error;
+    }
+    try {
+      this.assertProof(paymentOrder, proof, service);
+      await this.repository.setPaymentProof(id, proof);
+      invocation = await this.repository.transition(id, "PAYMENT_CONFIRMED");
+    } catch (error) {
+      releaseSlot();
+      throw error;
+    }
+    try {
+      invocation = await this.repository.transition(id, "EXECUTING");
+    } catch (error) {
+      releaseSlot();
+      throw error;
+    }
 
     try {
       const output = await executeService(service, invocation.input);
@@ -103,7 +121,17 @@ export class InvocationService {
       return this.repository.transition(id, "EXECUTION_FAILED", {
         failureReason: error instanceof Error ? error.message : "Unknown execution failure",
       });
+    } finally {
+      releaseSlot();
     }
+  }
+
+  async requestRefund(id: string, reason?: string) {
+    const invocation = await this.repository.findById(id);
+    if (!invocation) throw new Error("Invocation not found");
+    if (invocation.status === "REFUND_REQUIRED" || invocation.status === "REFUNDED") return invocation;
+    if (invocation.status !== "EXECUTION_FAILED") throw new Error("Only failed executions can be marked for refund");
+    return this.repository.transition(id, "REFUND_REQUIRED", { failureReason: reason ?? invocation.failureReason ?? "Seller requested refund" });
   }
 
   async get(id: string) {

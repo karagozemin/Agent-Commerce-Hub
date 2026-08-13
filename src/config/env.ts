@@ -11,6 +11,7 @@ const envSchema = z.object({
   GOAT_CHAIN_ID: z.coerce.number().int().positive().default(48816),
   GOAT_RPC_URL: z.url().default("https://rpc.testnet3.goat.network"),
   GOAT_EXPLORER_URL: z.url().default("https://explorer.testnet3.goat.network"),
+  INTERNAL_WALLETS: z.string().default(""),
 });
 
 export const env = envSchema.parse({
@@ -24,6 +25,7 @@ export const env = envSchema.parse({
   GOAT_CHAIN_ID: process.env.GOAT_CHAIN_ID,
   GOAT_RPC_URL: process.env.GOAT_RPC_URL,
   GOAT_EXPLORER_URL: process.env.GOAT_EXPLORER_URL,
+  INTERNAL_WALLETS: process.env.INTERNAL_WALLETS,
 });
 
 if (env.DATA_STORE === "postgres" && !env.DATABASE_URL) {

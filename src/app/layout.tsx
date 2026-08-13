@@ -22,6 +22,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/market" className="hover:text-[var(--ink)]">Marketplace</Link>
               <Link href="/activity" className="hover:text-[var(--ink)]">Activity</Link>
               <Link href="/metrics" className="hover:text-[var(--ink)]">Metrics</Link>
+              <Link href="/dashboard" className="hover:text-[var(--ink)]">Dashboard</Link>
               <Link href="/docs" className="hover:text-[var(--ink)]">Docs</Link>
             </nav>
             <Link href="/sell" className="button-secondary hidden sm:inline-flex"><CircleDollarSign size={17} /> List a service</Link>

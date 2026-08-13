@@ -78,8 +78,10 @@ For mainnet use chain ID `2345`, `https://flow-api.goat.network`, and the matchi
 GET  /api/v1/services
 GET  /api/v1/services/:slug
 GET  /api/v1/services/:slug/metrics
+GET  /api/v1/services/:slug/health
 POST /api/v1/services/:slug/invoke
 POST /api/v1/invocations/:id/confirm
+POST /api/v1/invocations/:id/refund
 GET  /api/v1/invocations/:id
 GET  /api/v1/metrics
 GET  /api/v1/activity
@@ -90,11 +92,17 @@ GET  /api/v1/auth/session
 POST /api/v1/auth/logout
 POST /api/v1/seller/profile
 GET  /api/v1/seller/services
+GET  /api/v1/seller/metrics
+GET  /api/v1/seller/transactions
 POST /api/v1/seller/services
 POST /api/v1/seller/merchant
 POST /api/v1/seller/services/:id/verify-endpoint
 POST /api/v1/seller/services/:id/verify-identity
 POST /api/v1/seller/services/:id/publish
+
+Seller analytics are available at `/dashboard`; metrics and transaction data are scoped to the authenticated seller and exclude simulations from revenue.
+
+Invocation starts are limited to 30 requests per buyer wallet per minute and four concurrent executions per service. A seller can mark a failed execution as `REFUND_REQUIRED`; actual asset transfer/refund execution remains payment-provider specific and is intentionally not simulated.
 ```
 
 An invocation must provide a stable `Idempotency-Key`. The initial response is HTTP 402 with authoritative payment terms. Fulfillment cannot transition to execution until the backend verifies the order proof.

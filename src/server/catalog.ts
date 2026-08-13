@@ -6,10 +6,10 @@ import { agentIdentities, invocations, sellers, serviceRecords } from "@/db/sche
 import { services as seedServices } from "@/data/services";
 import type { ServiceCategory, ServiceManifest } from "@/domain/types";
 
-export interface RuntimeService extends ServiceManifest { endpoint: string; method: string; testInput: unknown }
+export interface RuntimeService extends ServiceManifest { endpoint: string; method: string; testInput: unknown; endpointVerifiedAt: Date | null }
 
 function seedRuntime(service: ServiceManifest): RuntimeService {
-  return { ...service, endpoint: `internal://${service.slug}`, method: "POST", testInput: {} };
+  return { ...service, endpoint: `internal://${service.slug}`, method: "POST", testInput: {}, endpointVerifiedAt: null };
 }
 
 export async function listPublishedServices(): Promise<RuntimeService[]> {
@@ -59,6 +59,7 @@ export async function listPublishedServices(): Promise<RuntimeService[]> {
     endpoint: service.endpoint,
     method: service.method,
     testInput: service.testInput,
+    endpointVerifiedAt: service.endpointVerifiedAt,
   }));
 }
 
