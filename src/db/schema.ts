@@ -12,13 +12,31 @@ export const users = pgTable("users", {
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const authChallenges = pgTable("auth_challenges", {
+  id: text("id").primaryKey(),
+  walletAddress: text("wallet_address").notNull(),
+  message: text("message").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const sessions = pgTable("sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").references(() => users.id).notNull(),
+  walletAddress: text("wallet_address").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  revokedAt: timestamp("revoked_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const sellers = pgTable("sellers", {
   id: text("id").primaryKey(),
   userId: text("user_id").references(() => users.id).notNull(),
   displayName: text("display_name").notNull(),
   status: text("status").default("active").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+}, (table) => [uniqueIndex("sellers_user_idx").on(table.userId)]);
 
 export const agentIdentities = pgTable("agent_identities", {
   id: text("id").primaryKey(),
@@ -48,6 +66,7 @@ export const serviceRecords = pgTable("services", {
   network: text("network").notNull(),
   status: text("status").default("draft").notNull(),
   healthStatus: text("health_status").default("unknown").notNull(),
+  receivingWallet: text("receiving_wallet").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
@@ -58,6 +77,8 @@ export const invocations = pgTable("invocations", {
   buyerWallet: text("buyer_wallet").notNull(),
   orderId: text("order_id"),
   txHash: text("tx_hash"),
+  paymentOrder: jsonb("payment_order"),
+  paymentProof: jsonb("payment_proof"),
   amount: numeric("amount").notNull(),
   amountWei: text("amount_wei").notNull(),
   asset: text("asset").notNull(),
@@ -66,6 +87,7 @@ export const invocations = pgTable("invocations", {
   inputHash: text("input_hash").notNull(),
   output: jsonb("output"),
   outputHash: text("output_hash"),
+  receipt: jsonb("receipt"),
   paymentConfirmedAt: timestamp("payment_confirmed_at", { withTimezone: true }),
   executionStartedAt: timestamp("execution_started_at", { withTimezone: true }),
   executionCompletedAt: timestamp("execution_completed_at", { withTimezone: true }),

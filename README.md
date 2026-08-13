@@ -10,8 +10,10 @@ Agent Commerce Hub is a marketplace where AI services are discovered, paid per c
 - Mock payment adapter for local development
 - GOAT Flow DIRECT order and backend proof adapter
 - Payment-to-fulfillment state machine with receipt hashing
+- Wallet nonce authentication with replay-safe, hashed sessions
+- Protected seller profiles and service draft onboarding
 - Public metrics that exclude simulations and internal activity
-- PostgreSQL schema for sellers, identities, services, invocations, and internal wallets
+- PostgreSQL repository for auth, sellers, services, invocations, and receipts
 
 The seed service metrics are intentionally zero. The UI does not present fabricated transaction activity.
 
@@ -25,15 +27,19 @@ npm run dev
 
 Open `http://localhost:3000`. The default `PAYMENT_PROVIDER=mock` exercises the full invocation state machine without sending funds.
 
-For the optional PostgreSQL service:
+Memory storage is the zero-setup development default. For persistent PostgreSQL storage:
 
 ```bash
 docker compose up -d postgres
-npm run db:generate
 npm run db:migrate
+# Set DATA_STORE=postgres in .env.local, then restart npm run dev
 ```
 
-The current vertical slice uses the in-memory repository so it can run immediately. The Drizzle schema defines the persistent production model and is the next repository adapter.
+`db:generate` is only needed after changing `src/db/schema.ts`; generated migrations and Drizzle journal metadata are committed to the repository.
+
+Seller onboarding is available at `/sell`. The wallet signs a five-minute, single-use challenge. The backend stores only a SHA-256 digest of the session token in PostgreSQL and sends the raw token in an `HttpOnly`, `SameSite=Lax` cookie.
+
+New seller services remain `draft` until endpoint health, schema response, payment configuration, and ERC-8004 ownership have been verified. Draft endpoints are restricted to public HTTPS hosts and checked against private-network DNS resolution.
 
 ## GOAT Flow configuration
 
@@ -59,6 +65,13 @@ POST /api/v1/invocations/:id/confirm
 GET  /api/v1/invocations/:id
 GET  /api/v1/metrics
 GET  /api/v1/activity
+POST /api/v1/auth/nonce
+POST /api/v1/auth/verify
+GET  /api/v1/auth/session
+POST /api/v1/auth/logout
+POST /api/v1/seller/profile
+GET  /api/v1/seller/services
+POST /api/v1/seller/services
 ```
 
 An invocation must provide a stable `Idempotency-Key`. The initial response is HTTP 402 with authoritative payment terms. Fulfillment cannot transition to execution until the backend verifies the order proof.

@@ -1,5 +1,6 @@
 import type { InvocationRecord, InvocationStatus, PaymentOrder, PaymentProof } from "@/domain/types";
 import { assertTransition } from "@/domain/invocation-machine";
+import { env } from "@/config/env";
 
 export interface InvocationRepository {
   findById(id: string): Promise<InvocationRecord | undefined>;
@@ -68,11 +69,18 @@ export class MemoryInvocationRepository implements InvocationRepository {
 }
 
 const globalRepository = globalThis as typeof globalThis & {
-  invocationRepository?: MemoryInvocationRepository;
+  invocationRepository?: InvocationRepository;
 };
 
-export const invocationRepository =
-  globalRepository.invocationRepository ?? new MemoryInvocationRepository();
+async function createRepository(): Promise<InvocationRepository> {
+  if (env.DATA_STORE === "postgres") {
+    const { PostgresInvocationRepository } = await import("./postgres-invocation-repository");
+    return new PostgresInvocationRepository();
+  }
+  return new MemoryInvocationRepository();
+}
+
+export const invocationRepository = globalRepository.invocationRepository ?? await createRepository();
 
 if (process.env.NODE_ENV !== "production") {
   globalRepository.invocationRepository = invocationRepository;

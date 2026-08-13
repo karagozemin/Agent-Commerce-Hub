@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 const envSchema = z.object({
+  DATA_STORE: z.enum(["memory", "postgres"]).default("memory"),
+  DATABASE_URL: z.string().min(1).optional(),
   PAYMENT_PROVIDER: z.enum(["mock", "goat-flow"]).default("mock"),
   GOATX402_API_URL: z.url().default("https://flow-api.testnet3.goat.network"),
   GOATX402_API_KEY: z.string().optional(),
@@ -10,6 +12,8 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse({
+  DATA_STORE: process.env.DATA_STORE,
+  DATABASE_URL: process.env.DATABASE_URL,
   PAYMENT_PROVIDER: process.env.PAYMENT_PROVIDER,
   GOATX402_API_URL: process.env.GOATX402_API_URL,
   GOATX402_API_KEY: process.env.GOATX402_API_KEY,
@@ -17,3 +21,7 @@ export const env = envSchema.parse({
   GOAT_CHAIN_ID: process.env.GOAT_CHAIN_ID,
   GOAT_EXPLORER_URL: process.env.GOAT_EXPLORER_URL,
 });
+
+if (env.DATA_STORE === "postgres" && !env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is required when DATA_STORE=postgres");
+}
