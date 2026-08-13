@@ -18,6 +18,7 @@ Agent Commerce Hub is a marketplace where AI services are discovered, paid per c
 - Publish gates and PostgreSQL-backed dynamic marketplace catalog
 - Public metrics that exclude simulations and internal activity
 - PostgreSQL repository for auth, sellers, services, invocations, and receipts
+- Stateless MCP Streamable HTTP endpoint for autonomous service discovery and invocation
 
 The seed service metrics are intentionally zero. The UI does not present fabricated transaction activity.
 
@@ -81,6 +82,7 @@ POST /api/v1/invocations/:id/confirm
 GET  /api/v1/invocations/:id
 GET  /api/v1/metrics
 GET  /api/v1/activity
+POST /mcp
 POST /api/v1/auth/nonce
 POST /api/v1/auth/verify
 GET  /api/v1/auth/session
@@ -95,6 +97,8 @@ POST /api/v1/seller/services/:id/publish
 ```
 
 An invocation must provide a stable `Idempotency-Key`. The initial response is HTTP 402 with authoritative payment terms. Fulfillment cannot transition to execution until the backend verifies the order proof.
+
+The MCP endpoint is available at `/mcp` for autonomous buyer agents. It exposes `search_services`, `get_service`, `get_service_price`, `invoke_service`, `get_invocation_status`, `get_service_metrics`, and `get_agent_identity`. `invoke_service` returns the same authoritative payment order as the HTTP API; after payment, the buyer confirms the returned invocation through the existing invocation confirmation endpoint.
 
 ## Security boundary
 
