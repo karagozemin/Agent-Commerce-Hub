@@ -1,0 +1,14 @@
+{
+  "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
+  "name": "Agent Commerce Hub",
+  "description": "An agent-native marketplace for discovering, paying for, and fulfilling AI services through GOAT Flow and x402.",
+  "services": [
+    {
+      "name": "Repository",
+      "endpoint": "https://github.com/karagozemin/Agent-Commerce-Hub"
+    }
+  ],
+  "x402Support": true,
+  "active": true,
+  "registrations": []
+}

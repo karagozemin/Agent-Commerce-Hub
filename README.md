@@ -109,6 +109,16 @@ An invocation must provide a stable `Idempotency-Key`. The initial response is H
 
 The MCP endpoint is available at `/mcp` for autonomous buyer agents. It exposes `search_services`, `get_service`, `get_service_price`, `invoke_service`, `get_invocation_status`, `get_service_metrics`, and `get_agent_identity`. `invoke_service` returns the same authoritative payment order as the HTTP API; after payment, the buyer confirms the returned invocation through the existing invocation confirmation endpoint.
 
+## ERC-8004 identity
+
+The public registration metadata is tracked at `public/agents/agent-commerce-hub.json`. After this file is pushed to the `main` branch, its stable registration URI is:
+
+```text
+https://raw.githubusercontent.com/karagozemin/Agent-Commerce-Hub/main/public/agents/agent-commerce-hub.json
+```
+
+Verify that the raw URL returns JSON before registering on GOAT mainnet. Use the wallet that should own the hub identity, call `register(string agentURI)` on the GOAT mainnet IdentityRegistry, and keep the returned Agent ID. The registry address is `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`.
+
 ## Security boundary
 
 Browser payment success is only a UX signal. Before execution, the backend compares order ID, payer, recipient, token contract, amount, and chain. A successful invocation stores input/output hashes and a receipt tied to the transaction hash.
