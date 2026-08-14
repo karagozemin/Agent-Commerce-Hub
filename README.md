@@ -119,6 +119,8 @@ https://raw.githubusercontent.com/karagozemin/Agent-Commerce-Hub/main/public/age
 
 Verify that the raw URL returns JSON before registering on GOAT mainnet. Use the wallet that should own the hub identity, call `register(string agentURI)` on the GOAT mainnet IdentityRegistry, and keep the returned Agent ID. The registry address is `0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`.
 
+The hub identity is registered as Agent ID `84` on GOAT mainnet (`eip155:2345:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432`).
+
 ## Security boundary
 
 Browser payment success is only a UX signal. Before execution, the backend compares order ID, payer, recipient, token contract, amount, and chain. A successful invocation stores input/output hashes and a receipt tied to the transaction hash.
