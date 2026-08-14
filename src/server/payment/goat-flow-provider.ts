@@ -7,6 +7,13 @@ import { sellerRepository } from "@/server/seller/repository";
 import { decryptCredential } from "@/server/credential-crypto";
 
 export class GoatFlowPaymentProvider implements PaymentProvider {
+  private assertFirstPartyReceivingWallet(service: ServiceManifest) {
+    if (service.sellerId || !env.GOATX402_RECEIVING_WALLET) return;
+    if (service.sellerWallet.toLowerCase() !== env.GOATX402_RECEIVING_WALLET.toLowerCase()) {
+      throw new Error("First-party service is not configured for the GOAT merchant receiving wallet");
+    }
+  }
+
   private async clientFor(service: ServiceManifest) {
     if (service.sellerId) {
       const config = await sellerRepository.findMerchantConfig(service.sellerId);
@@ -23,6 +30,7 @@ export class GoatFlowPaymentProvider implements PaymentProvider {
 
   async createOrder({ invocationId, buyerWallet, service }: CreatePaymentInput): Promise<PaymentOrder> {
     const client = await this.clientFor(service);
+    this.assertFirstPartyReceivingWallet(service);
     const chainId = service.network === "goat-mainnet" ? 2345 : 48816;
     const order = await client.createOrder({
       dappOrderId: invocationId,

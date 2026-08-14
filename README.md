@@ -68,9 +68,10 @@ GOATX402_API_URL=https://flow-api.testnet3.goat.network
 GOATX402_API_KEY=...
 GOATX402_API_SECRET=...
 GOAT_CHAIN_ID=48816
+GOATX402_RECEIVING_WALLET=0x...
 ```
 
-For mainnet use chain ID `2345`, `https://flow-api.goat.network`, and the matching merchant/token/receiving-address configuration. Never expose merchant credentials in browser environment variables.
+For mainnet use chain ID `2345`, `https://flow-api.goat.network`, `GOATX402_RECEIVING_WALLET=0x2c06D8eBB95678944C9Ba9f67284619BA7AcAE51`, and the matching merchant/token route. First-party payment creation rejects seed services whose receiving wallet does not match this configured route. Never expose merchant credentials in browser environment variables.
 
 ## API
 

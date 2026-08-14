@@ -57,6 +57,8 @@ async function seedCatalog() {
         amountWei: service.pricing.amountWei,
         asset: service.pricing.asset,
         healthStatus: service.availability,
+        network: service.network,
+        receivingWallet: wallet,
       },
     });
     await db.insert(agentIdentities).values({
@@ -71,7 +73,15 @@ async function seedCatalog() {
       verifiedAt: service.identity.verified ? new Date() : null,
     }).onConflictDoUpdate({
       target: agentIdentities.id,
-      set: { serviceId: service.id },
+      set: {
+        serviceId: service.id,
+        network: service.network,
+        registryAddress: service.identity.registryAddress,
+        agentId: service.identity.agentId,
+        agentUri: service.identity.agentUri,
+        ownerWallet: service.identity.ownerWallet.toLowerCase(),
+        verifiedAt: service.identity.verified ? new Date() : null,
+      },
     });
   }
 }
