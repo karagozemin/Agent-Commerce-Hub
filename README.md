@@ -85,6 +85,8 @@ Agents use the `quickPay.idempotencyKey` returned by `invoke_service` when purch
 
 The browser checkout also has a BTC-first preparation path. If the payer lacks enough GOAT USDC.e, the app reads the live WGBTC/USDC.e quote from the official OKU QuoterV2 and offers one native-BTC swap through SwapRouter02. The router wraps BTC within the same transaction, the minimum output is pinned to the exact USDC deficit, gas is reserved before submission, and the token balance is checked again before QuickPay opens. The swap prepares the payment asset; only the separately verified QuickPay service payment counts as a paid invocation.
 
+Submitted swaps are tracked through the read-only `GOAT_TRACKING_RPC_URL` endpoint rather than the wallet's configured RPC. The UI retains the submitted hash, shows an explorer link and confirmation timer, and only rechecks that hash after a timeout so a stale wallet RPC cannot cause a duplicate preparation swap. The default tracker is the GOAT-supported Ankr mainnet RPC.
+
 ## API
 
 ```text

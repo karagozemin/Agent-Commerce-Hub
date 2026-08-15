@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { formatUnits } from "ethers";
 import { GoatCheckout, type CheckoutResult } from "goatflow-checkout";
-import { ArrowRightLeft, CheckCircle2, CircleDollarSign, Copy, LoaderCircle, Play, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowRightLeft, CheckCircle2, CircleDollarSign, Clock3, Copy, ExternalLink, LoaderCircle, Play, ShieldCheck, Wallet } from "lucide-react";
 import type { InvocationRecord, ServiceManifest } from "@/domain/types";
 import {
-  executeBtcPreparation,
   quoteBtcPreparation,
+  submitBtcPreparation,
   type BtcPreparationQuote,
+  waitForBtcPreparation,
 } from "./goat-payment-preparer";
 
 const goatChainId = 2345;
@@ -23,6 +24,12 @@ interface InjectedProvider {
 interface AnnouncedProvider {
   info: { name: string; rdns: string };
   provider: InjectedProvider;
+}
+
+interface SwapProgress {
+  hash: `0x${string}`;
+  startedAt: number;
+  state: "confirming" | "confirmed";
 }
 
 async function findMetaMaskProvider() {
@@ -75,6 +82,14 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
   const [connectedWallet, setConnectedWallet] = useState<string>();
   const [btcPreparation, setBtcPreparation] = useState<BtcPreparationQuote>();
   const [quickPayFunded, setQuickPayFunded] = useState(false);
+  const [swapProgress, setSwapProgress] = useState<SwapProgress>();
+  const [clock, setClock] = useState(0);
+
+  useEffect(() => {
+    if (swapProgress?.state !== "confirming") return;
+    const timer = window.setInterval(() => setClock(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [swapProgress]);
 
   async function connectWallet() {
     const ethereum = await findMetaMaskProvider();
@@ -94,7 +109,7 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
             chainId: goatChainHex,
             chainName: "GOAT Network",
             nativeCurrency: { name: "Bitcoin", symbol: "BTC", decimals: 18 },
-            rpcUrls: ["https://rpc.goat.network"],
+            rpcUrls: ["https://rpc.ankr.com/goat_mainnet", "https://rpc.goat.network"],
             blockExplorerUrls: ["https://explorer.goat.network"],
           }]);
         }
@@ -139,6 +154,7 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
       setInvocation(nextInvocation);
       setBtcPreparation(undefined);
       setQuickPayFunded(false);
+      setSwapProgress(undefined);
       if (nextInvocation.paymentOrder?.flow === "QUICKPAY_PRODUCT") {
         setPaymentPhase("Checking payment balance");
         const quote = await quoteBtcPreparation(
@@ -210,26 +226,30 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
       if (order.flow === "QUICKPAY_PRODUCT") {
         const walletConnection = await connectWallet();
         if (btcPreparation) {
-          setPaymentPhase("Refreshing BTC swap quote");
-          const freshQuote = await quoteBtcPreparation(walletConnection.provider, walletConnection.signer, order);
-          if (!freshQuote) {
-            setBtcPreparation(undefined);
-            setQuickPayFunded(true);
-            return;
+          let hash = swapProgress?.hash;
+          if (!hash) {
+            setPaymentPhase("Refreshing BTC swap quote");
+            const freshQuote = await quoteBtcPreparation(walletConnection.provider, walletConnection.signer, order);
+            if (!freshQuote) {
+              setBtcPreparation(undefined);
+              setQuickPayFunded(true);
+              return;
+            }
+            if (freshQuote.amountIn > btcPreparation.amountIn) {
+              setBtcPreparation(freshQuote);
+              return;
+            }
+            setPaymentPhase("Waiting for wallet approval");
+            hash = await submitBtcPreparation(walletConnection.signer, order, freshQuote);
+            const startedAt = Date.now();
+            setClock(startedAt);
+            setSwapProgress({ hash, startedAt, state: "confirming" });
           }
-          if (freshQuote.amountIn > btcPreparation.amountIn) {
-            setBtcPreparation(freshQuote);
-            return;
-          }
-          setPaymentPhase("Waiting for BTC swap approval");
-          await executeBtcPreparation(
-            walletConnection.provider,
-            walletConnection.signer,
-            order,
-            freshQuote,
-          );
+          setPaymentPhase("Confirming BTC swap");
+          await waitForBtcPreparation(hash, order, walletConnection.address);
           setBtcPreparation(undefined);
           setQuickPayFunded(true);
+          setSwapProgress((current) => current ? { ...current, state: "confirmed" } : current);
           return;
         } else if (!quickPayFunded) {
           setPaymentPhase("Checking payment balance");
@@ -277,6 +297,11 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
     }
   }
 
+  const swapElapsedSeconds = swapProgress?.state === "confirming"
+    ? Math.max(0, Math.floor((clock - swapProgress.startedAt) / 1_000))
+    : 0;
+  const swapRemainingSeconds = Math.max(0, 12 - swapElapsedSeconds);
+
   return (
     <aside className="panel p-5 lg:sticky lg:top-5">
       <div className="mb-5 flex items-center justify-between border-b border-(--line) pb-4">
@@ -313,7 +338,20 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
           <p className="mt-3 text-xs leading-5 text-(--muted)">One swap approval. The remaining native BTC stays in your wallet for gas.</p>
         </div>}
         {quickPayFunded && invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" && <p className="mb-4 flex items-center gap-2 text-xs font-bold text-(--green)"><CheckCircle2 size={16} /> USDC balance ready for QuickPay</p>}
-        <button className="button-primary w-full" disabled={busy} onClick={confirm}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : btcPreparation ? <ArrowRightLeft size={17} /> : <CircleDollarSign size={17} />} {paymentPhase ?? (invocation.paymentOrder?.simulation ? "Simulate payment" : btcPreparation ? "Swap BTC" : invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" ? "Open QuickPay checkout" : "Pay and execute")}</button>
+        <button className="button-primary w-full" disabled={busy} onClick={confirm}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : swapProgress?.state === "confirming" ? <Clock3 size={17} /> : btcPreparation ? <ArrowRightLeft size={17} /> : <CircleDollarSign size={17} />} {paymentPhase ?? (invocation.paymentOrder?.simulation ? "Simulate payment" : swapProgress?.state === "confirming" ? "Check swap status" : btcPreparation ? "Swap BTC" : invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" ? "Open QuickPay checkout" : "Pay and execute")}</button>
+        {swapProgress && <div className="mt-4 border-t border-(--line) pt-4" aria-live="polite">
+          <div className="flex items-start justify-between gap-3 text-xs">
+            <div className="flex min-w-0 gap-2">
+              {swapProgress.state === "confirmed" ? <CheckCircle2 className="shrink-0 text-(--green)" size={17} /> : <LoaderCircle className="shrink-0 animate-spin text-(--blue)" size={17} />}
+              <div>
+                <strong className="block">{swapProgress.state === "confirmed" ? "BTC swap confirmed" : "Confirming on GOAT Network"}</strong>
+                {swapProgress.state === "confirming" && <span className="mt-1 block text-(--muted)">{swapRemainingSeconds > 0 ? `Estimated ${swapRemainingSeconds}s remaining` : `Still confirming · ${swapElapsedSeconds}s elapsed`}</span>}
+              </div>
+            </div>
+            <a className="inline-flex shrink-0 items-center gap-1 font-bold text-(--blue)" href={`https://explorer.goat.network/tx/${swapProgress.hash}`} target="_blank" rel="noreferrer">Explorer <ExternalLink size={13} /></a>
+          </div>
+          {swapProgress.state === "confirming" && <div className="mt-3 h-1 overflow-hidden bg-(--line)"><div className="h-full bg-(--blue) transition-[width] duration-500" style={{ width: `${Math.min(92, Math.max(8, swapElapsedSeconds / 12 * 100))}%` }} /></div>}
+        </div>}
       </div>}
 
       {invocation?.status === "SUCCEEDED" && <div>

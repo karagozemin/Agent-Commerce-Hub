@@ -10,13 +10,17 @@ const okuQuoterAddress = "0x5911cB3633e764939edc2d92b7e1ad375Bb57649";
 const poolFee = 500;
 const quoteSampleInput = 10_000_000_000_000n;
 
-const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
 const quoterAbi = [
   "function quoteExactInputSingle((address,address,uint256,uint24,uint160)) returns (uint256,uint160,uint32,uint256)",
 ];
 const routerAbi = [
   "function exactInputSingle((address,address,uint24,address,uint256,uint256,uint160)) payable returns (uint256)",
 ];
+
+interface TrackedBalanceResponse {
+  data?: { nativeBalance?: string; tokenBalance?: string };
+  error?: string;
+}
 
 export interface BtcPreparationQuote {
   amountIn: bigint;
@@ -61,6 +65,21 @@ async function quoteOutput(provider: BrowserProvider, amountIn: bigint) {
   return result[0];
 }
 
+async function trackedBalances(walletAddress: string) {
+  const response = await fetch(
+    `/api/v1/chain/accounts/${encodeURIComponent(walletAddress)}/balances/${encodeURIComponent(usdcAddress)}`,
+    { cache: "no-store", signal: AbortSignal.timeout(8_000) },
+  );
+  const body = await response.json() as TrackedBalanceResponse;
+  if (!response.ok || !body.data?.nativeBalance || body.data.tokenBalance === undefined) {
+    throw new Error(body.error ?? "Could not read current GOAT balances");
+  }
+  return {
+    nativeBalance: BigInt(body.data.nativeBalance),
+    tokenBalance: BigInt(body.data.tokenBalance),
+  };
+}
+
 export async function quoteBtcPreparation(
   provider: BrowserProvider,
   signer: JsonRpcSigner,
@@ -69,11 +88,9 @@ export async function quoteBtcPreparation(
   const walletAddress = await signer.getAddress();
   assertSupportedOrder(order, walletAddress);
 
-  const usdc = new Contract(usdcAddress, erc20Abi, provider);
-  const [currentUsdcBalance, nativeBalance] = await Promise.all([
-    usdc.balanceOf(walletAddress) as Promise<bigint>,
-    provider.getBalance(walletAddress),
-  ]);
+  const balances = await trackedBalances(walletAddress);
+  const currentUsdcBalance = balances.tokenBalance;
+  const nativeBalance = balances.nativeBalance;
   const requiredAmount = BigInt(order.amountWei);
   if (currentUsdcBalance >= requiredAmount) return null;
 
@@ -127,8 +144,7 @@ export async function quoteBtcPreparation(
   };
 }
 
-export async function executeBtcPreparation(
-  provider: BrowserProvider,
+export async function submitBtcPreparation(
   signer: JsonRpcSigner,
   order: PaymentOrder,
   quote: BtcPreparationQuote,
@@ -145,13 +161,37 @@ export async function executeBtcPreparation(
       gasPrice: quote.gasPrice,
     },
   );
-  const receipt = await transaction.wait(1);
-  if (!receipt || receipt.status !== 1) throw new Error("BTC to USDC swap failed");
+  return transaction.hash as `0x${string}`;
+}
 
-  const usdc = new Contract(usdcAddress, erc20Abi, provider);
-  const balance = await usdc.balanceOf(walletAddress) as bigint;
-  if (balance < BigInt(order.amountWei)) {
-    throw new Error("Swap confirmed, but the USDC balance is still below the QuickPay amount");
+interface TrackedTransactionResponse {
+  data?: {
+    state?: "pending" | "confirmed" | "failed";
+    tokenBalance?: string;
+  };
+  error?: string;
+}
+
+export async function waitForBtcPreparation(hash: string, order: PaymentOrder, walletAddress: string) {
+  assertSupportedOrder(order, walletAddress);
+  const search = new URLSearchParams({ token: order.tokenContract, account: walletAddress });
+  const deadline = Date.now() + 180_000;
+
+  while (Date.now() < deadline) {
+    const response = await fetch(`/api/v1/chain/transactions/${encodeURIComponent(hash)}?${search}`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(8_000),
+    });
+    const body = await response.json() as TrackedTransactionResponse;
+    if (response.ok && body.data?.state === "failed") throw new Error("BTC to USDC swap failed on-chain");
+    if (response.ok && body.data?.state === "confirmed") {
+      if (!body.data.tokenBalance || BigInt(body.data.tokenBalance) < BigInt(order.amountWei)) {
+        throw new Error("Swap confirmed, but the USDC balance is still below the QuickPay amount");
+      }
+      return;
+    }
+    if (!response.ok && response.status < 500) throw new Error(body.error ?? "Could not track BTC swap");
+    await new Promise((resolve) => window.setTimeout(resolve, 1_500));
   }
-  return receipt.hash as `0x${string}`;
+  throw new Error("The swap is still confirming. Check its existing transaction status; do not submit another swap");
 }

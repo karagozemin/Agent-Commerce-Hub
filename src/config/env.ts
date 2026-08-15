@@ -14,6 +14,7 @@ const envSchema = z.object({
   GOAT_QUICKPAY_PRODUCT_KEY: z.string().regex(/^[A-Za-z0-9._:~-]{1,64}$/).default("wallet-analysis"),
   GOAT_CHAIN_ID: z.coerce.number().int().positive().default(48816),
   GOAT_RPC_URL: z.url().default("https://rpc.testnet3.goat.network"),
+  GOAT_TRACKING_RPC_URL: z.url().default("https://rpc.ankr.com/goat_mainnet"),
   GOAT_EXPLORER_URL: z.url().default("https://explorer.testnet3.goat.network"),
   INTERNAL_WALLETS: z.string().default(""),
 });
@@ -32,6 +33,7 @@ export const env = envSchema.parse({
   GOAT_QUICKPAY_PRODUCT_KEY: process.env.GOAT_QUICKPAY_PRODUCT_KEY,
   GOAT_CHAIN_ID: process.env.GOAT_CHAIN_ID,
   GOAT_RPC_URL: process.env.GOAT_RPC_URL,
+  GOAT_TRACKING_RPC_URL: process.env.GOAT_TRACKING_RPC_URL,
   GOAT_EXPLORER_URL: process.env.GOAT_EXPLORER_URL,
   INTERNAL_WALLETS: process.env.INTERNAL_WALLETS,
 });
