@@ -8,6 +8,41 @@ const demoWallet = "0x12a000000000000000000000000000000000009a";
 const goatChainId = 2345;
 const goatChainHex = "0x929";
 
+interface InjectedProvider {
+  isMetaMask?: boolean;
+  providers?: InjectedProvider[];
+  request(args: { method: string; params?: unknown[] | Record<string, unknown> }): Promise<unknown>;
+}
+
+interface AnnouncedProvider {
+  info: { name: string; rdns: string };
+  provider: InjectedProvider;
+}
+
+async function findMetaMaskProvider() {
+  const injected = (window as typeof window & { ethereum?: InjectedProvider }).ethereum;
+  const legacyMetaMask = injected?.providers?.find((provider) => provider.isMetaMask);
+
+  return new Promise<InjectedProvider>((resolve, reject) => {
+    let settled = false;
+    const finish = (provider?: InjectedProvider) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("eip6963:announceProvider", onAnnouncement);
+      if (provider) resolve(provider);
+      else reject(new Error("Install MetaMask to make a mainnet payment"));
+    };
+    const onAnnouncement = (event: Event) => {
+      const detail = (event as CustomEvent<AnnouncedProvider>).detail;
+      if (detail?.info.rdns === "io.metamask") finish(detail.provider);
+    };
+
+    window.addEventListener("eip6963:announceProvider", onAnnouncement);
+    window.dispatchEvent(new Event("eip6963:requestProvider"));
+    window.setTimeout(() => finish(legacyMetaMask ?? (injected?.isMetaMask ? injected : undefined)), 150);
+  });
+}
+
 function inputFor(service: ServiceManifest, value: string) {
   const keys: Record<string, string> = {
     "wallet-lens": "address",
@@ -34,8 +69,7 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
   const [connectedWallet, setConnectedWallet] = useState<string>();
 
   async function connectWallet() {
-    const ethereum = (window as typeof window & { ethereum?: unknown }).ethereum;
-    if (!ethereum) throw new Error("Install an EVM wallet to make a mainnet payment");
+    const ethereum = await findMetaMaskProvider();
     const { BrowserProvider } = await import("ethers");
     let provider = new BrowserProvider(ethereum as ConstructorParameters<typeof BrowserProvider>[0]);
     let network = await provider.getNetwork();
