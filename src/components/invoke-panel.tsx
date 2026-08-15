@@ -4,7 +4,6 @@ import { useState } from "react";
 import { CheckCircle2, CircleDollarSign, Copy, LoaderCircle, Play, ShieldCheck, Wallet } from "lucide-react";
 import type { InvocationRecord, ServiceManifest } from "@/domain/types";
 
-const demoWallet = "0x12a000000000000000000000000000000000009a";
 const goatChainId = 2345;
 const goatChainHex = "0x929";
 
@@ -60,7 +59,7 @@ function placeholderFor(slug: string) {
 }
 
 export function InvokePanel({ service }: { service: ServiceManifest }) {
-  const [wallet, setWallet] = useState(demoWallet);
+  const [wallet, setWallet] = useState("");
   const [value, setValue] = useState(placeholderFor(service.slug));
   const [invocation, setInvocation] = useState<InvocationRecord>();
   const [busy, setBusy] = useState(false);
@@ -118,10 +117,11 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
     setBusy(true);
     setError(undefined);
     try {
+      const buyerWallet = (await connectWallet()).address;
       const response = await fetch(`/api/v1/services/${service.slug}/invoke`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
-        body: JSON.stringify({ buyerWallet: wallet, input: inputFor(service, value) }),
+        body: JSON.stringify({ buyerWallet, input: inputFor(service, value) }),
       });
       const data = await response.json();
       if (response.status !== 402) throw new Error(data.error ?? "Invocation could not be created");
@@ -145,7 +145,7 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
         const { signer, address, network } = await connectWallet();
         if (Number(network.chainId) !== order.chainId) throw new Error(`Switch your wallet to chain ${order.chainId}`);
         if (address.toLowerCase() !== order.fromAddress.toLowerCase()) {
-          throw new Error("Connected wallet does not match the payment order payer");
+          throw new Error("MetaMask account changed after order creation. Connect the payer account and request a new invocation");
         }
         if (Math.floor(Date.now() / 1000) >= order.expiresAt) {
           throw new Error("Payment order expired; request a new invocation");
@@ -180,38 +180,38 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
 
   return (
     <aside className="panel p-5 lg:sticky lg:top-5">
-      <div className="mb-5 flex items-center justify-between border-b border-[var(--line)] pb-4">
-        <div><span className="text-xs text-[var(--muted)]">Price per call</span><strong className="block text-2xl">${service.pricing.amount} <small className="text-sm">{service.pricing.asset}</small></strong></div>
-        <span className="rounded-[4px] bg-[var(--green-soft)] px-2 py-1 text-xs font-bold text-[var(--green)]">x402 DIRECT</span>
+      <div className="mb-5 flex items-center justify-between border-b border-(--line) pb-4">
+        <div><span className="text-xs text-(--muted)">Price per call</span><strong className="block text-2xl">${service.pricing.amount} <small className="text-sm">{service.pricing.asset}</small></strong></div>
+        <span className="rounded bg-(--green-soft) px-2 py-1 text-xs font-bold text-(--green)">x402 DIRECT</span>
       </div>
 
       {!invocation && <div className="space-y-4">
-        <label className="block text-sm font-bold">Buyer wallet<input className="field mt-2 font-mono text-xs" value={wallet} onChange={(event) => setWallet(event.target.value)} /></label>
+        <label className="block text-sm font-bold">Buyer wallet<input className="field mt-2 font-mono text-xs" readOnly value={wallet} placeholder="Connect MetaMask to select payer" /></label>
         <button className="button-secondary w-full" disabled={busy} onClick={handleConnectWallet}><Wallet size={16} />{connectedWallet ? `Connected: ${connectedWallet.slice(0, 6)}...${connectedWallet.slice(-4)}` : "Connect wallet"}</button>
         <label className="block text-sm font-bold">Service input<textarea className="field mt-2 min-h-24 resize-y font-mono text-xs" value={value} onChange={(event) => setValue(event.target.value)} /></label>
         <button className="button-primary w-full" disabled={busy} onClick={invoke}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : <Play size={17} />} Request invocation</button>
-        <p className="flex gap-2 text-xs leading-5 text-[var(--muted)]"><ShieldCheck size={16} className="mt-0.5 shrink-0 text-[var(--green)]" /> Fulfillment begins only after trusted backend payment confirmation.</p>
+        <p className="flex gap-2 text-xs leading-5 text-(--muted)"><ShieldCheck size={16} className="mt-0.5 shrink-0 text-(--green)" /> Fulfillment begins only after trusted backend payment confirmation.</p>
       </div>}
 
       {invocation?.status === "PAYMENT_REQUIRED" && <div>
         <div className="mb-4 rounded-[5px] border border-[#e8cfaa] bg-[#fff8eb] p-4">
-          <div className="mb-2 flex items-center gap-2 font-bold text-[var(--amber)]"><CircleDollarSign size={18} /> 402 Payment Required</div>
+          <div className="mb-2 flex items-center gap-2 font-bold text-(--amber)"><CircleDollarSign size={18} /> 402 Payment Required</div>
           <dl className="grid grid-cols-[90px_1fr] gap-y-2 text-xs">
-            <dt className="text-[var(--muted)]">Recipient</dt><dd className="truncate font-mono">{invocation.paymentOrder?.payToAddress}</dd>
-            <dt className="text-[var(--muted)]">Amount</dt><dd>{service.pricing.amount} {service.pricing.asset}</dd>
-            <dt className="text-[var(--muted)]">Network</dt><dd>{invocation.paymentOrder?.simulation ? "GOAT Testnet simulation" : `Chain ${invocation.paymentOrder?.chainId}`}</dd>
+            <dt className="text-(--muted)">Recipient</dt><dd className="truncate font-mono">{invocation.paymentOrder?.payToAddress}</dd>
+            <dt className="text-(--muted)">Amount</dt><dd>{service.pricing.amount} {service.pricing.asset}</dd>
+            <dt className="text-(--muted)">Network</dt><dd>{invocation.paymentOrder?.simulation ? "GOAT Testnet simulation" : `Chain ${invocation.paymentOrder?.chainId}`}</dd>
           </dl>
         </div>
         <button className="button-primary w-full" disabled={busy} onClick={confirm}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : <CircleDollarSign size={17} />} {paymentPhase ?? (invocation.paymentOrder?.simulation ? "Simulate payment" : "Pay and execute")}</button>
       </div>}
 
       {invocation?.status === "SUCCEEDED" && <div>
-        <div className="mb-4 flex items-center gap-3 border-b border-[var(--line)] pb-4 text-[var(--green)]"><CheckCircle2 size={22} /><div><strong className="block">Invocation succeeded</strong><span className="text-xs">Payment verified, result delivered</span></div></div>
-        <p className="mb-2 text-xs font-bold text-[var(--muted)]">Result</p>
+        <div className="mb-4 flex items-center gap-3 border-b border-(--line) pb-4 text-(--green)"><CheckCircle2 size={22} /><div><strong className="block">Invocation succeeded</strong><span className="text-xs">Payment verified, result delivered</span></div></div>
+        <p className="mb-2 text-xs font-bold text-(--muted)">Result</p>
         <pre className="max-h-64 overflow-auto rounded-[5px] bg-[#151a17] p-4 text-xs leading-5 text-[#d9e7dd]">{JSON.stringify(invocation.output, null, 2)}</pre>
-        <div className="mt-4 flex items-center justify-between text-xs"><span className="font-mono text-[var(--muted)]">{invocation.id.slice(0, 18)}...</span><button className="icon-button !size-8 !min-h-8" title="Copy receipt" onClick={() => navigator.clipboard.writeText(JSON.stringify(invocation.receipt))}><Copy size={14} /></button></div>
+        <div className="mt-4 flex items-center justify-between text-xs"><span className="font-mono text-(--muted)">{invocation.id.slice(0, 18)}...</span><button className="icon-button size-8! min-h-8!" title="Copy receipt" onClick={() => navigator.clipboard.writeText(JSON.stringify(invocation.receipt))}><Copy size={14} /></button></div>
       </div>}
-      {error && <p className="mt-4 rounded-[4px] bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="mt-4 rounded bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     </aside>
   );
 }
