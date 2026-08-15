@@ -37,23 +37,28 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
     const ethereum = (window as typeof window & { ethereum?: unknown }).ethereum;
     if (!ethereum) throw new Error("Install an EVM wallet to make a mainnet payment");
     const { BrowserProvider } = await import("ethers");
-    const provider = new BrowserProvider(ethereum as ConstructorParameters<typeof BrowserProvider>[0]);
+    let provider = new BrowserProvider(ethereum as ConstructorParameters<typeof BrowserProvider>[0]);
     let network = await provider.getNetwork();
     if (Number(network.chainId) !== goatChainId) {
       try {
         await provider.send("wallet_switchEthereumChain", [{ chainId: goatChainHex }]);
       } catch (cause) {
-        if ((cause as { code?: number }).code !== 4902) {
+        const code = (cause as { code?: number | string }).code;
+        if (code !== 4902 && code !== "NETWORK_ERROR") {
           throw new Error("Switch your wallet to GOAT Network Mainnet (chain 2345)");
         }
-        await provider.send("wallet_addEthereumChain", [{
-          chainId: goatChainHex,
-          chainName: "GOAT Network",
-          nativeCurrency: { name: "GOAT", symbol: "GOAT", decimals: 18 },
-          rpcUrls: ["https://rpc.goat.network"],
-          blockExplorerUrls: ["https://explorer.goat.network"],
-        }]);
+        if (code === 4902) {
+          await provider.send("wallet_addEthereumChain", [{
+            chainId: goatChainHex,
+            chainName: "GOAT Network",
+            nativeCurrency: { name: "GOAT", symbol: "GOAT", decimals: 18 },
+            rpcUrls: ["https://rpc.goat.network"],
+            blockExplorerUrls: ["https://explorer.goat.network"],
+          }]);
+        }
       }
+      // A chain switch invalidates the BrowserProvider's cached network.
+      provider = new BrowserProvider(ethereum as ConstructorParameters<typeof BrowserProvider>[0]);
       network = await provider.getNetwork();
     }
     const signer = await provider.getSigner();
