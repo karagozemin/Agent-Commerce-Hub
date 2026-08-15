@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, CircleDollarSign, Copy, LoaderCircle, Play, ShieldCheck } from "lucide-react";
+import { CheckCircle2, CircleDollarSign, Copy, LoaderCircle, Play, ShieldCheck, Wallet } from "lucide-react";
 import type { InvocationRecord, ServiceManifest } from "@/domain/types";
 
 const demoWallet = "0x12a000000000000000000000000000000000009a";
+const goatChainId = 2345;
+const goatChainHex = "0x929";
 
 function inputFor(service: ServiceManifest, value: string) {
   const keys: Record<string, string> = {
@@ -29,16 +31,48 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [paymentPhase, setPaymentPhase] = useState<string>();
+  const [connectedWallet, setConnectedWallet] = useState<string>();
 
   async function connectWallet() {
     const ethereum = (window as typeof window & { ethereum?: unknown }).ethereum;
     if (!ethereum) throw new Error("Install an EVM wallet to make a mainnet payment");
     const { BrowserProvider } = await import("ethers");
     const provider = new BrowserProvider(ethereum as ConstructorParameters<typeof BrowserProvider>[0]);
+    let network = await provider.getNetwork();
+    if (Number(network.chainId) !== goatChainId) {
+      try {
+        await provider.send("wallet_switchEthereumChain", [{ chainId: goatChainHex }]);
+      } catch (cause) {
+        if ((cause as { code?: number }).code !== 4902) {
+          throw new Error("Switch your wallet to GOAT Network Mainnet (chain 2345)");
+        }
+        await provider.send("wallet_addEthereumChain", [{
+          chainId: goatChainHex,
+          chainName: "GOAT Network",
+          nativeCurrency: { name: "GOAT", symbol: "GOAT", decimals: 18 },
+          rpcUrls: ["https://rpc.goat.network"],
+          blockExplorerUrls: ["https://explorer.goat.network"],
+        }]);
+      }
+      network = await provider.getNetwork();
+    }
     const signer = await provider.getSigner();
     const address = await signer.getAddress();
     setWallet(address);
-    return { provider, signer, address };
+    setConnectedWallet(address);
+    return { provider, signer, address, network };
+  }
+
+  async function handleConnectWallet() {
+    setBusy(true);
+    setError(undefined);
+    try {
+      await connectWallet();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Wallet connection failed");
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function invoke() {
@@ -69,11 +103,8 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
       if (!order) throw new Error("Payment order is missing");
       if (!order.simulation) {
         setPaymentPhase("Connecting wallet");
-        const { provider, signer, address } = await connectWallet();
-        const network = await provider.getNetwork();
-        if (Number(network.chainId) !== order.chainId) {
-          throw new Error(`Switch your wallet to chain ${order.chainId}`);
-        }
+        const { signer, address, network } = await connectWallet();
+        if (Number(network.chainId) !== order.chainId) throw new Error(`Switch your wallet to chain ${order.chainId}`);
         if (address.toLowerCase() !== order.fromAddress.toLowerCase()) {
           throw new Error("Connected wallet does not match the payment order payer");
         }
@@ -117,6 +148,7 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
 
       {!invocation && <div className="space-y-4">
         <label className="block text-sm font-bold">Buyer wallet<input className="field mt-2 font-mono text-xs" value={wallet} onChange={(event) => setWallet(event.target.value)} /></label>
+        <button className="button-secondary w-full" disabled={busy} onClick={handleConnectWallet}><Wallet size={16} />{connectedWallet ? `Connected: ${connectedWallet.slice(0, 6)}...${connectedWallet.slice(-4)}` : "Connect wallet"}</button>
         <label className="block text-sm font-bold">Service input<textarea className="field mt-2 min-h-24 resize-y font-mono text-xs" value={value} onChange={(event) => setValue(event.target.value)} /></label>
         <button className="button-primary w-full" disabled={busy} onClick={invoke}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : <Play size={17} />} Request invocation</button>
         <p className="flex gap-2 text-xs leading-5 text-[var(--muted)]"><ShieldCheck size={16} className="mt-0.5 shrink-0 text-[var(--green)]" /> Fulfillment begins only after trusted backend payment confirmation.</p>
