@@ -779,7 +779,7 @@ This is the lowest-risk production path and remains the MVP fallback.
 
 Use when the buyer has BTC on GOAT but lacks the configured payment token.
 
-* Detect balances before creating a payment order.
+* Detect balances before submitting the payment.
 * Request a live quote from a supported GOAT mainnet liquidity venue.
 * Preserve enough native BTC for all required gas.
 * Prepare only the payment-token amount needed for the invocation, with an explicit slippage ceiling.
@@ -787,7 +787,7 @@ Use when the buyer has BTC on GOAT but lacks the configured payment token.
 
 The application should orchestrate the preparation and payment steps from one UI action, while showing each wallet transaction before signature. Preparation transactions do not count as paid invocations. Only the verified service-payment transaction enters headline metrics.
 
-The GOAT AgentKit OKU integration and the GOAT mainnet WGBTC/USDC pool are candidate infrastructure. Production use requires successful quote, liquidity, slippage, wrapping, failure-recovery, and end-to-end mainnet tests.
+Implementation status: the browser path reads the live OKU QuoterV2 WGBTC/USDC.e pool at the active `0.05%` fee tier. When USDC is short, it submits one SwapRouter02 `exactInputSingle` transaction with native BTC as value; the router wraps BTC in the same transaction. The exact USDC deficit is the minimum output, the quote includes a preparation buffer, the app reserves estimated gas, and it verifies the resulting USDC balance before opening QuickPay. Read-only mainnet quote and router simulations are proven; a user-approved mainnet swap and the following paid QuickPay fulfillment remain required before calling this path production-proven.
 
 ### Path C: Agent Treasury Abstraction
 

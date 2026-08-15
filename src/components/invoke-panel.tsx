@@ -1,9 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { formatUnits } from "ethers";
 import { GoatCheckout, type CheckoutResult } from "goatflow-checkout";
-import { CheckCircle2, CircleDollarSign, Copy, LoaderCircle, Play, ShieldCheck, Wallet } from "lucide-react";
+import { ArrowRightLeft, CheckCircle2, CircleDollarSign, Copy, LoaderCircle, Play, ShieldCheck, Wallet } from "lucide-react";
 import type { InvocationRecord, ServiceManifest } from "@/domain/types";
+import {
+  executeBtcPreparation,
+  quoteBtcPreparation,
+  type BtcPreparationQuote,
+} from "./goat-payment-preparer";
 
 const goatChainId = 2345;
 const goatChainHex = "0x929";
@@ -67,6 +73,8 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
   const [error, setError] = useState<string>();
   const [paymentPhase, setPaymentPhase] = useState<string>();
   const [connectedWallet, setConnectedWallet] = useState<string>();
+  const [btcPreparation, setBtcPreparation] = useState<BtcPreparationQuote>();
+  const [quickPayFunded, setQuickPayFunded] = useState(false);
 
   async function connectWallet() {
     const ethereum = await findMetaMaskProvider();
@@ -85,7 +93,7 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
           await provider.send("wallet_addEthereumChain", [{
             chainId: goatChainHex,
             chainName: "GOAT Network",
-            nativeCurrency: { name: "GOAT", symbol: "GOAT", decimals: 18 },
+            nativeCurrency: { name: "Bitcoin", symbol: "BTC", decimals: 18 },
             rpcUrls: ["https://rpc.goat.network"],
             blockExplorerUrls: ["https://explorer.goat.network"],
           }]);
@@ -118,7 +126,8 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
     setBusy(true);
     setError(undefined);
     try {
-      const buyerWallet = (await connectWallet()).address;
+      const walletConnection = await connectWallet();
+      const buyerWallet = walletConnection.address;
       const response = await fetch(`/api/v1/services/${service.slug}/invoke`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
@@ -126,11 +135,25 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
       });
       const data = await response.json();
       if (response.status !== 402) throw new Error(data.error ?? "Invocation could not be created");
-      setInvocation({ id: data.invocationId, status: data.status, paymentOrder: data.payment } as InvocationRecord);
+      const nextInvocation = { id: data.invocationId, status: data.status, paymentOrder: data.payment } as InvocationRecord;
+      setInvocation(nextInvocation);
+      setBtcPreparation(undefined);
+      setQuickPayFunded(false);
+      if (nextInvocation.paymentOrder?.flow === "QUICKPAY_PRODUCT") {
+        setPaymentPhase("Checking payment balance");
+        const quote = await quoteBtcPreparation(
+          walletConnection.provider,
+          walletConnection.signer,
+          nextInvocation.paymentOrder,
+        );
+        setBtcPreparation(quote ?? undefined);
+        setQuickPayFunded(quote === null);
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Invocation failed");
     } finally {
       setBusy(false);
+      setPaymentPhase(undefined);
     }
   }
 
@@ -185,6 +208,38 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
       const order = invocation.paymentOrder;
       if (!order) throw new Error("Payment order is missing");
       if (order.flow === "QUICKPAY_PRODUCT") {
+        const walletConnection = await connectWallet();
+        if (btcPreparation) {
+          setPaymentPhase("Refreshing BTC swap quote");
+          const freshQuote = await quoteBtcPreparation(walletConnection.provider, walletConnection.signer, order);
+          if (!freshQuote) {
+            setBtcPreparation(undefined);
+            setQuickPayFunded(true);
+            return;
+          }
+          if (freshQuote.amountIn > btcPreparation.amountIn) {
+            setBtcPreparation(freshQuote);
+            return;
+          }
+          setPaymentPhase("Waiting for BTC swap approval");
+          await executeBtcPreparation(
+            walletConnection.provider,
+            walletConnection.signer,
+            order,
+            freshQuote,
+          );
+          setBtcPreparation(undefined);
+          setQuickPayFunded(true);
+          return;
+        } else if (!quickPayFunded) {
+          setPaymentPhase("Checking payment balance");
+          const quote = await quoteBtcPreparation(walletConnection.provider, walletConnection.signer, order);
+          if (quote) {
+            setBtcPreparation(quote);
+            return;
+          }
+          setQuickPayFunded(true);
+        }
         setPaymentPhase("Opening secure checkout");
         const result = await openQuickPay(order);
         if (!result.session_id) throw new Error("QuickPay did not return a payment session ID");
@@ -247,7 +302,18 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
             {invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" && <><dt className="text-(--muted)">Checkout</dt><dd>GOAT QuickPay</dd></>}
           </dl>
         </div>
-        <button className="button-primary w-full" disabled={busy} onClick={confirm}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : <CircleDollarSign size={17} />} {paymentPhase ?? (invocation.paymentOrder?.simulation ? "Simulate payment" : invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" ? "Open QuickPay checkout" : "Pay and execute")}</button>
+        {btcPreparation && <div className="mb-4 border-y border-(--line) bg-(--paper) px-1 py-4">
+          <div className="mb-3 flex items-center gap-2 text-sm font-bold"><ArrowRightLeft size={17} className="text-(--green)" /> Prepare payment with native BTC</div>
+          <dl className="grid grid-cols-[110px_1fr] gap-y-2 text-xs">
+            <dt className="text-(--muted)">Current balance</dt><dd>{formatUnits(btcPreparation.currentUsdcBalance, 6)} USDC</dd>
+            <dt className="text-(--muted)">Swap</dt><dd className="font-mono">{formatUnits(btcPreparation.amountIn, 18)} BTC</dd>
+            <dt className="text-(--muted)">Expected</dt><dd>{formatUnits(btcPreparation.expectedAmountOut, 6)} USDC</dd>
+            <dt className="text-(--muted)">Minimum</dt><dd>{formatUnits(btcPreparation.deficit, 6)} USDC</dd>
+          </dl>
+          <p className="mt-3 text-xs leading-5 text-(--muted)">One swap approval. The remaining native BTC stays in your wallet for gas.</p>
+        </div>}
+        {quickPayFunded && invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" && <p className="mb-4 flex items-center gap-2 text-xs font-bold text-(--green)"><CheckCircle2 size={16} /> USDC balance ready for QuickPay</p>}
+        <button className="button-primary w-full" disabled={busy} onClick={confirm}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : btcPreparation ? <ArrowRightLeft size={17} /> : <CircleDollarSign size={17} />} {paymentPhase ?? (invocation.paymentOrder?.simulation ? "Simulate payment" : btcPreparation ? "Swap BTC" : invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" ? "Open QuickPay checkout" : "Pay and execute")}</button>
       </div>}
 
       {invocation?.status === "SUCCEEDED" && <div>

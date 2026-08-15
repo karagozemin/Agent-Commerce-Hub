@@ -83,6 +83,8 @@ The public QuickPay listing is live and discoverable. Wallet Analysis invocation
 
 Agents use the `quickPay.idempotencyKey` returned by `invoke_service` when purchasing `quickPay.productKey`, then call `confirm_invocation` with the resulting QuickPay `session_id`. Reusing the same invocation or session is safe; attempting to bind a session to a second invocation is rejected.
 
+The browser checkout also has a BTC-first preparation path. If the payer lacks enough GOAT USDC.e, the app reads the live WGBTC/USDC.e quote from the official OKU QuoterV2 and offers one native-BTC swap through SwapRouter02. The router wraps BTC within the same transaction, the minimum output is pinned to the exact USDC deficit, gas is reserved before submission, and the token balance is checked again before QuickPay opens. The swap prepares the payment asset; only the separately verified QuickPay service payment counts as a paid invocation.
+
 ## API
 
 ```text
