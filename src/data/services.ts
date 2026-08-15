@@ -22,7 +22,7 @@ export const services: ServiceManifest[] = [
       verified: true,
     },
     network: "goat-mainnet",
-    pricing: { model: "per_call", amount: "0.08", amountWei: "80000", asset: "USDC" },
+    pricing: { model: "per_call", amount: "0.10", amountWei: "100000", asset: "USDC" },
     inputSchema: {
       type: "object",
       required: ["address"],
