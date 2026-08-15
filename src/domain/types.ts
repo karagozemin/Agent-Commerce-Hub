@@ -56,7 +56,7 @@ export interface ServiceManifest {
 
 export interface PaymentOrder {
   orderId: string;
-  flow: "ERC20_DIRECT";
+  flow: "ERC20_DIRECT" | "QUICKPAY_PRODUCT";
   tokenSymbol: string;
   tokenContract: `0x${string}`;
   fromAddress: `0x${string}`;
@@ -65,6 +65,13 @@ export interface PaymentOrder {
   amountWei: string;
   expiresAt: number;
   simulation?: boolean;
+  quickPay?: {
+    origin: string;
+    merchantId: string;
+    productKey: string;
+    clientReferenceId: string;
+    idempotencyKey: string;
+  };
 }
 
 export interface PaymentProof {
@@ -76,6 +83,11 @@ export interface PaymentProof {
   amountWei: string;
   chainId: number;
   confirmedAt: string;
+  dappOrderId?: string;
+  paymentSessionId?: string;
+  clientReferenceId?: string;
+  idempotencyKey?: string;
+  productKey?: string;
 }
 
 export interface InvocationReceipt {
@@ -86,6 +98,8 @@ export interface InvocationReceipt {
   amount: string;
   asset: string;
   txHash: `0x${string}`;
+  paymentOrderId?: string;
+  paymentSessionId?: string;
   inputHash: `0x${string}`;
   outputHash: `0x${string}`;
   status: "succeeded";
@@ -104,6 +118,7 @@ export interface InvocationRecord {
   outputHash?: `0x${string}`;
   paymentOrder?: PaymentOrder;
   paymentProof?: PaymentProof;
+  paymentSessionId?: string;
   receipt?: InvocationReceipt;
   failureReason?: string;
   isInternal: boolean;

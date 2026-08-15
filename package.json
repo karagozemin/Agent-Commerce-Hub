@@ -20,6 +20,7 @@
     "ajv": "^8.17.1",
     "drizzle-orm": "^0.45.2",
     "ethers": "^6.17.0",
+    "goatflow-checkout": "^0.1.0",
     "goatflow-sdk": "^0.2.1",
     "goatflow-sdk-server": "^0.3.0",
     "lucide-react": "^0.468.0",

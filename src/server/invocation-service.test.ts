@@ -95,4 +95,38 @@ describe("InvocationService", () => {
 
     await expect(service.confirm(started.id)).rejects.toThrow("does not match");
   });
+
+  it("does not bind an unverified QuickPay session", async () => {
+    const repository = new MemoryInvocationRepository();
+    const payments: PaymentProvider = {
+      async createOrder({ invocationId, buyerWallet, service }) {
+        return {
+          orderId: `quickpay_intent_${invocationId}`,
+          flow: "QUICKPAY_PRODUCT",
+          tokenSymbol: "USDC",
+          tokenContract: token,
+          fromAddress: buyerWallet,
+          payToAddress: service.sellerWallet,
+          chainId: 2345,
+          amountWei: service.pricing.amountWei,
+          expiresAt: Math.floor(Date.now() / 1000) + 60,
+          quickPay: {
+            origin: "https://flow-quickpay.goat.network",
+            merchantId: "agentcommercehub",
+            productKey: "wallet-analysis",
+            clientReferenceId: invocationId,
+            idempotencyKey: invocationId,
+          },
+        };
+      },
+      async confirmOrder() {
+        throw new Error("Payment is not confirmed: ORDER_CREATED");
+      },
+    };
+    const service = new InvocationService(repository, payments);
+    const started = await service.start(startInput());
+
+    await expect(service.confirm(started.id, { sessionId: "qps_unverified" })).rejects.toThrow("not confirmed");
+    expect((await repository.findById(started.id))?.paymentSessionId).toBeUndefined();
+  });
 });

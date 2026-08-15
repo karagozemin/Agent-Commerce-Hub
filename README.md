@@ -19,6 +19,7 @@ Agent Commerce Hub is a marketplace where AI services are discovered, paid per c
 - Public metrics that exclude simulations and internal activity
 - PostgreSQL repository for auth, sellers, services, invocations, and receipts
 - Stateless MCP Streamable HTTP endpoint for autonomous service discovery and invocation
+- Live QuickPay discovery and backend-verified fulfillment for the fixed-price Wallet Analysis product
 
 The seed service metrics are intentionally zero. The UI does not present fabricated transaction activity.
 
@@ -73,6 +74,15 @@ GOATX402_RECEIVING_WALLET=0x...
 
 For mainnet use chain ID `2345`, `https://flow-api.goat.network`, `GOATX402_RECEIVING_WALLET=0x2c06D8eBB95678944C9Ba9f67284619BA7AcAE51`, and the matching merchant/token route. First-party payment creation rejects seed services whose receiving wallet does not match this configured route. Never expose merchant credentials in browser environment variables.
 
+The production merchant also publishes the fixed-price `wallet-analysis` product as **Wallet Analysis** at `0.10 USDC` through QuickPay:
+
+- [Agent-readable instructions](https://flow-quickpay.goat.network/quickpay/agentcommercehub/agent.md)
+- [Machine-readable manifest](https://flow-quickpay.goat.network/quickpay/agentcommercehub/manifest.json)
+
+The public QuickPay listing is live and discoverable. Wallet Analysis invocations open the hosted checkout with the invocation ID as the client reference, bind the returned session ID to exactly one invocation, and verify both the trusted QuickPay session snapshot and the merchant-authenticated GOAT order proof before execution. The browser callback remains a UX signal only. Founder, first-party seller, and configured test wallets are excluded from headline external metrics.
+
+Agents use the `quickPay.idempotencyKey` returned by `invoke_service` when purchasing `quickPay.productKey`, then call `confirm_invocation` with the resulting QuickPay `session_id`. Reusing the same invocation or session is safe; attempting to bind a session to a second invocation is rejected.
+
 ## API
 
 ```text
@@ -108,7 +118,7 @@ Invocation starts are limited to 30 requests per buyer wallet per minute and fou
 
 An invocation must provide a stable `Idempotency-Key`. The initial response is HTTP 402 with authoritative payment terms. Fulfillment cannot transition to execution until the backend verifies the order proof.
 
-The MCP endpoint is available at `/mcp` for autonomous buyer agents. It exposes `search_services`, `get_service`, `get_service_price`, `invoke_service`, `get_invocation_status`, `get_service_metrics`, and `get_agent_identity`. `invoke_service` returns the same authoritative payment order as the HTTP API; after payment, the buyer confirms the returned invocation through the existing invocation confirmation endpoint.
+The MCP endpoint is available at `/mcp` for autonomous buyer agents. It exposes `search_services`, `get_service`, `get_service_price`, `invoke_service`, `get_invocation_status`, `confirm_invocation`, `get_service_metrics`, and `get_agent_identity`. `invoke_service` returns the same authoritative payment intent as the HTTP API. After QuickPay returns a session ID, the agent supplies it to `confirm_invocation`; fulfillment remains gated by backend verification.
 
 ## ERC-8004 identity
 

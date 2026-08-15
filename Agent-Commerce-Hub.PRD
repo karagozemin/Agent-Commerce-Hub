@@ -609,13 +609,13 @@ Agent:
 Find a service that can analyze GOAT wallet activity under $0.20
 
 Marketplace:
-Found WalletLens
-Price: $0.08
+Found Wallet Analysis
+Price: $0.10
 Seller identity: verified
 Availability: online
 
 Agent:
-Invoke WalletLens for 0x...
+Invoke Wallet Analysis for 0x...
 
 Marketplace:
 Payment required
@@ -733,6 +733,138 @@ This provides three important properties:
 1. Real economic activity
 2. Real seller revenue
 3. Minimal marketplace custody
+
+## 19.1 Payment UX Principle
+
+The buyer experience should be:
+
+```text
+Connect wallet -> Choose service -> Pay -> Receive result
+```
+
+The product must not make buyers independently discover and acquire both a payment token and a gas token as part of the normal purchase flow. Asset preparation is a platform orchestration concern, while every transaction and wallet approval must remain explicit to the buyer.
+
+Low-friction onboarding must not weaken the mainnet requirement. A paid invocation counts toward headline metrics only when the service payment itself settles on GOAT mainnet and is verified by the backend.
+
+## 19.2 Current Production Constraints
+
+The current public GOAT Flow DIRECT integration creates an `ERC20_DIRECT` order and the buyer submits an ERC-20 transfer on GOAT mainnet. Native BTC is the GOAT gas token, but it is not automatically a supported GOAT Flow payment asset.
+
+Supported payment assets must come from the merchant's live chain-token configuration. Token-agnostic QuickPay pricing means the buyer can choose among enabled merchant token routes; it does not guarantee native BTC support.
+
+The first-party production merchant currently exposes one route:
+
+* GOAT mainnet, chain ID `2345`
+* USDC with 6 decimals
+* DIRECT settlement
+
+QuickPay is live for merchant `agentcommercehub`. Its public `agent.md` and `manifest.json` expose the fixed product `wallet-analysis` as **Wallet Analysis** at `0.10 USDC`. MPP is disabled; the active production path is QuickPay/x402 DIRECT.
+
+## 19.3 Buyer Payment Paths
+
+The marketplace should support three progressively enhanced paths behind one payment interface.
+
+### Path A: Direct GOAT Flow Payment
+
+Use when the buyer already has the configured GOAT payment token and enough native BTC for gas.
+
+* Create the GOAT Flow order.
+* Display authoritative amount, token, recipient, and chain.
+* Submit the ERC-20 payment.
+* Fulfill only after backend proof verification.
+
+This is the lowest-risk production path and remains the MVP fallback.
+
+### Path B: BTC-First Payment Preparation
+
+Use when the buyer has BTC on GOAT but lacks the configured payment token.
+
+* Detect balances before creating a payment order.
+* Request a live quote from a supported GOAT mainnet liquidity venue.
+* Preserve enough native BTC for all required gas.
+* Prepare only the payment-token amount needed for the invocation, with an explicit slippage ceiling.
+* Continue into the normal GOAT Flow payment and backend verification flow.
+
+The application should orchestrate the preparation and payment steps from one UI action, while showing each wallet transaction before signature. Preparation transactions do not count as paid invocations. Only the verified service-payment transaction enters headline metrics.
+
+The GOAT AgentKit OKU integration and the GOAT mainnet WGBTC/USDC pool are candidate infrastructure. Production use requires successful quote, liquidity, slippage, wrapping, failure-recovery, and end-to-end mainnet tests.
+
+### Path C: Agent Treasury Abstraction
+
+Use for autonomous buyer agents that maintain BTC treasury balances and need programmatic payments.
+
+Candidate integrations may provide just-in-time payment-token acquisition or collateralized borrowing, policy-controlled signing, and automatic payment retries. HyperMove / `n-payment` is a candidate, not a production dependency by default.
+
+Before enabling an agent treasury adapter, verify:
+
+* Production contracts and addresses
+* Real GOAT mainnet lending or swap execution
+* Payment-token and gas acquisition behavior
+* Spending limits and signer isolation
+* Failure atomicity and debt repayment
+* Compatibility with the marketplace's GOAT Flow order and proof model
+* Independent security review
+
+Unverified, simulated, placeholder, or test-only lending paths must never be presented as production funding.
+
+## 19.4 Payment Readiness and Fallbacks
+
+Before requesting payment, the UI must classify the connected buyer into one of these states:
+
+```text
+READY_DIRECT
+READY_BTC_FIRST
+NEEDS_FUNDING
+UNSUPPORTED
+```
+
+Required behavior:
+
+1. `READY_DIRECT` proceeds directly to the GOAT Flow payment.
+2. `READY_BTC_FIRST` offers an in-product quote and payment preparation flow.
+3. `NEEDS_FUNDING` shows one supported funding route instead of a raw balance error.
+4. `UNSUPPORTED` stops before order creation and explains the missing production route.
+5. A failed preparation step must not create a second payment order or accidentally pay twice.
+6. Every balance, quote, chain, recipient, amount, and slippage check must be refreshed before signature.
+
+## 19.5 Payment UX Acceptance Criteria
+
+* Buyers never type their wallet address manually.
+* Existing GOAT USDC buyers reach payment with one wallet transaction.
+* BTC-funded buyers do not leave the product to manually search for a payment token when a verified in-product route is available.
+* The product never claims that native BTC is accepted by GOAT Flow unless the live merchant configuration exposes that exact route.
+* The product never claims gas abstraction, borrowing, or atomic payment unless the production adapter proves it end to end.
+* All successful paid invocations settle on GOAT mainnet, pay the configured seller, and expose an explorer-verifiable transaction hash.
+* Founder, internal, preparation, and test transactions remain excluded from headline external-payment metrics.
+
+## 19.6 Wallet Analysis Production Proof Gate
+
+Wallet Analysis is the only first-party product to promote until the complete production loop is proven. A live QuickPay listing is necessary but is not sufficient evidence of completed fulfillment.
+
+Implementation status: the hosted QuickPay product is connected to the application invocation state machine. Session IDs are uniquely bound, backend session and merchant-order proofs gate fulfillment, and first-party wallets are classified as internal. The remaining milestone is a successful internal payment smoke test followed by a successful external-payer production proof.
+
+Required proof sequence:
+
+```text
+External wallet or agent
+  -> discovers Wallet Analysis
+  -> creates one fixed-product QuickPay session
+  -> pays 0.10 USDC on GOAT mainnet
+  -> backend verifies the authoritative payment state
+  -> invocation executes once
+  -> real wallet analysis result is returned
+  -> external metrics record the invocation and transaction
+```
+
+Acceptance criteria:
+
+* The QuickPay session is correlated to exactly one invocation through a stable client reference or idempotency key.
+* Browser success callbacks are treated only as UX signals; backend verification gates fulfillment.
+* Retries cannot create duplicate sessions, duplicate charges, or duplicate execution.
+* The technical smoke test may use a founder wallet, but it is tagged internal and excluded from external headline metrics.
+* The first production milestone requires a successful payment from a wallet outside the internal-wallet registry.
+* The stored receipt includes the QuickPay session or order identifier and an explorer-verifiable GOAT mainnet transaction hash.
+* No additional first-party product is launched before this flow succeeds end to end.
 
 ---
 
@@ -936,7 +1068,7 @@ Before inviting external builders, launch with 3 to 5 working first-party servic
 
 Suggested seed set:
 
-## WalletLens
+## Wallet Analysis
 
 Input:
 GOAT address
@@ -2226,6 +2358,24 @@ Mitigation:
 * Target sellers with existing users
 * Ask every seller to bring initial users
 * Build useful seed services
+
+## Risk: Payment onboarding friction
+
+Mitigation:
+
+* Detect payment readiness before order creation
+* Keep direct payment as the reliable fallback
+* Orchestrate a verified BTC-first preparation route in-product
+* Never require users to discover token contracts or liquidity venues manually
+
+## Risk: Unverified payment abstraction
+
+Mitigation:
+
+* Feature-flag treasury and auto-funding adapters
+* Require production contract and route verification
+* Test failure recovery, debt repayment, slippage, and duplicate-payment prevention
+* Fall back to direct GOAT Flow payment when an abstraction path is unavailable
 
 ## Risk: Too many tiny meaningless transactions
 

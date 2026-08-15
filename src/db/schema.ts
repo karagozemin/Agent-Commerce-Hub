@@ -98,6 +98,7 @@ export const invocations = pgTable("invocations", {
   serviceId: text("service_id").references(() => serviceRecords.id).notNull(),
   buyerWallet: text("buyer_wallet").notNull(),
   orderId: text("order_id"),
+  paymentSessionId: text("payment_session_id").unique(),
   txHash: text("tx_hash"),
   paymentOrder: jsonb("payment_order"),
   paymentProof: jsonb("payment_proof"),

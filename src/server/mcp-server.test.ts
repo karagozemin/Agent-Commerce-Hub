@@ -28,6 +28,7 @@ describe("marketplace MCP server", () => {
       "get_service_price",
       "invoke_service",
       "get_invocation_status",
+      "confirm_invocation",
       "get_service_metrics",
       "get_agent_identity",
     ]);
@@ -42,7 +43,7 @@ describe("marketplace MCP server", () => {
     expect((search.data as Array<{ slug: string }>)[0].slug).toBe("wallet-lens");
 
     const price = resultJson(await client.callTool({ name: "get_service_price", arguments: { slug: "wallet-lens" } }));
-    expect((price.pricing as { amount: string }).amount).toBe("0.08");
+    expect((price.pricing as { amount: string }).amount).toBe("0.10");
     await client.close();
     await server.close();
   });

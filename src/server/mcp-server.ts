@@ -122,6 +122,22 @@ export function createMarketplaceMcpServer() {
     return invocation ? textResult({ data: invocation }) : textResult({ error: "Invocation not found" }, true);
   });
 
+  server.registerTool("confirm_invocation", {
+    title: "Confirm paid invocation",
+    description: "Bind a completed QuickPay session to its invocation, verify settlement on the backend, and execute the service once.",
+    inputSchema: {
+      invocationId: z.string().trim().min(1).max(120),
+      sessionId: z.string().trim().min(1).max(200),
+    },
+  }, async ({ invocationId, sessionId }) => {
+    try {
+      const invocation = await invocationService.confirm(invocationId, { sessionId });
+      return textResult({ data: invocation });
+    } catch (error) {
+      return textResult({ error: error instanceof Error ? error.message : "Unable to confirm invocation" }, true);
+    }
+  });
+
   server.registerTool("get_service_metrics", {
     title: "Get service metrics",
     description: "Get auditable invocation counts and latency metrics for one published service.",

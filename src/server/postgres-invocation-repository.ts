@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, or } from "drizzle-orm";
 import { findPublishedServiceById } from "@/server/catalog";
 import { assertTransition } from "@/domain/invocation-machine";
 import type { InvocationRecord, InvocationStatus, PaymentOrder, PaymentProof } from "@/domain/types";
@@ -22,6 +22,7 @@ function toRecord(row: InvocationRow): InvocationRecord {
     outputHash: row.outputHash as `0x${string}` | undefined,
     paymentOrder: row.paymentOrder as PaymentOrder | undefined,
     paymentProof: row.paymentProof as PaymentProof | undefined,
+    paymentSessionId: row.paymentSessionId ?? undefined,
     receipt: row.receipt as InvocationRecord["receipt"],
     failureReason: row.failureReason ?? undefined,
     isInternal: row.isInternal,
@@ -103,6 +104,30 @@ export class PostgresInvocationRepository implements InvocationRepository {
     }).where(eq(invocations.id, id)).returning();
     if (!row) throw new Error(`Invocation not found: ${id}`);
     return toRecord(row);
+  }
+
+  async bindPaymentSession(id: string, paymentSessionId: string) {
+    try {
+      const [row] = await getDatabase().update(invocations).set({
+        paymentSessionId,
+        updatedAt: new Date(),
+      }).where(and(
+        eq(invocations.id, id),
+        or(isNull(invocations.paymentSessionId), eq(invocations.paymentSessionId, paymentSessionId)),
+      )).returning();
+      if (row) return toRecord(row);
+    } catch (error) {
+      const claimed = await getDatabase().select({ id: invocations.id }).from(invocations)
+        .where(eq(invocations.paymentSessionId, paymentSessionId)).limit(1);
+      if (claimed[0]?.id !== id) throw new Error("Payment session is already bound to another invocation");
+      throw error;
+    }
+
+    const current = await this.require(id);
+    if (current.paymentSessionId !== paymentSessionId) {
+      throw new Error("Invocation is already bound to a different payment session");
+    }
+    return current;
   }
 
   async setPaymentProof(id: string, paymentProof: PaymentProof) {

@@ -74,6 +74,7 @@ export class GoatFlowPaymentProvider implements PaymentProvider {
       amountWei: proof.payload.amount_wei,
       chainId: proof.payload.from_chain_id,
       confirmedAt: status.confirmedAt ?? new Date().toISOString(),
+      dappOrderId: status.dappOrderId,
     };
   }
 }

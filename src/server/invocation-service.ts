@@ -5,6 +5,7 @@ import { findPublishedServiceById, findPublishedServiceBySlug } from "./catalog"
 import { executeService } from "./executor";
 import { getPaymentProvider } from "./payment";
 import type { PaymentProvider } from "./payment/provider";
+import type { PaymentConfirmation } from "./payment/provider";
 import { invocationRepository, type InvocationRepository } from "./repository";
 import { validateServiceInput } from "./input-validation";
 import { acquireServiceSlot, assertInvocationRate } from "./invocation-guards";
@@ -61,12 +62,18 @@ export class InvocationService {
     return this.repository.transition(invocation.id, "PAYMENT_REQUIRED");
   }
 
-  async confirm(id: string) {
+  async confirm(id: string, confirmation: PaymentConfirmation = {}) {
     let invocation = await this.repository.findById(id);
     if (!invocation) throw new Error("Invocation not found");
     if (invocation.status === "SUCCEEDED" || invocation.status === "EXECUTING") return invocation;
     if (!invocation.paymentOrder) throw new Error("Payment order is missing");
     const paymentOrder = invocation.paymentOrder;
+
+    if (paymentOrder.flow === "QUICKPAY_PRODUCT") {
+      const sessionId = confirmation.sessionId ?? invocation.paymentSessionId;
+      if (!sessionId) throw new Error("A QuickPay session ID is required to confirm this invocation");
+      confirmation = { sessionId };
+    }
 
     if (invocation.status === "PAYMENT_REQUIRED") {
       invocation = await this.repository.transition(id, "PAYMENT_SUBMITTED");
@@ -80,13 +87,16 @@ export class InvocationService {
     const releaseSlot = acquireServiceSlot(service.id);
     let proof: PaymentProof;
     try {
-      proof = await this.payments.confirmOrder(paymentOrder, service);
+      proof = await this.payments.confirmOrder(paymentOrder, service, confirmation);
     } catch (error) {
       releaseSlot();
       throw error;
     }
     try {
-      this.assertProof(paymentOrder, proof, service);
+      if (proof.paymentSessionId) {
+        invocation = await this.repository.bindPaymentSession(id, proof.paymentSessionId);
+      }
+      this.assertProof(paymentOrder, proof, service, invocation.paymentSessionId);
       await this.repository.setPaymentProof(id, proof);
       invocation = await this.repository.transition(id, "PAYMENT_CONFIRMED");
     } catch (error) {
@@ -111,6 +121,8 @@ export class InvocationService {
         amount: service.pricing.amount,
         asset: service.pricing.asset,
         txHash: proof.txHash,
+        paymentOrderId: proof.orderId,
+        paymentSessionId: proof.paymentSessionId,
         inputHash: invocation.inputHash,
         outputHash,
         status: "succeeded",
@@ -138,10 +150,15 @@ export class InvocationService {
     return this.repository.findById(id);
   }
 
-  private assertProof(order: PaymentOrder, proof: PaymentProof, service: ServiceManifest) {
+  private assertProof(order: PaymentOrder, proof: PaymentProof, service: ServiceManifest, paymentSessionId?: string) {
     const equalAddress = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+    const validOrder = order.flow === "QUICKPAY_PRODUCT"
+      ? proof.paymentSessionId !== undefined
+        && proof.paymentSessionId === paymentSessionId
+        && proof.productKey === order.quickPay?.productKey
+      : proof.orderId === order.orderId;
     const valid =
-      proof.orderId === order.orderId &&
+      validOrder &&
       equalAddress(proof.fromAddress, order.fromAddress) &&
       equalAddress(proof.toAddress, service.sellerWallet) &&
       equalAddress(proof.tokenContract, order.tokenContract) &&

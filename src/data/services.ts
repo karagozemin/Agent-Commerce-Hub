@@ -6,10 +6,10 @@ export const services: ServiceManifest[] = [
   {
     id: "svc_wallet_lens",
     slug: "wallet-lens",
-    name: "WalletLens",
+    name: "Wallet Analysis",
     description: "Turns raw GOAT wallet history into a concise activity and risk summary.",
     longDescription:
-      "WalletLens inspects account activity, counterparties, token movements, and contract interactions. It returns a structured summary suitable for both human review and downstream agent workflows.",
+      "Wallet Analysis inspects account activity, counterparties, token movements, and contract interactions. It returns a structured summary suitable for both human review and downstream agent workflows.",
     category: "GOAT Native",
     tags: ["wallet", "activity", "risk"],
     sellerName: "Agent Commerce Hub",

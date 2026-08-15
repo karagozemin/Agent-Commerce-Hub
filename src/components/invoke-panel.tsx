@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { GoatCheckout, type CheckoutResult } from "goatflow-checkout";
 import { CheckCircle2, CircleDollarSign, Copy, LoaderCircle, Play, ShieldCheck, Wallet } from "lucide-react";
 import type { InvocationRecord, ServiceManifest } from "@/domain/types";
 
@@ -133,6 +134,49 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
     }
   }
 
+  function openQuickPay(order: NonNullable<InvocationRecord["paymentOrder"]>) {
+    const config = order.quickPay;
+    if (!config) throw new Error("QuickPay checkout configuration is missing");
+
+    return new Promise<CheckoutResult>((resolve, reject) => {
+      const checkout = GoatCheckout({ origin: config.origin });
+      checkout.open({
+        merchant: config.merchantId,
+        productKey: config.productKey,
+        token: order.tokenSymbol,
+        chain: order.chainId,
+        clientReferenceId: config.clientReferenceId,
+        display: "tab",
+        onSuccess: resolve,
+        onCancel: () => reject(new Error("Payment was cancelled")),
+        onError: (reason) => reject(new Error(
+          reason === "popup_blocked"
+            ? "Allow popups for this site and try again"
+            : reason === "opener_unavailable"
+              ? "Checkout opened, but the browser disconnected its secure result channel. Do not pay twice; return after checking the existing payment"
+              : "QuickPay checkout could not be completed",
+        )),
+      });
+    });
+  }
+
+  async function reconcile(sessionId: string | undefined, attempts: number) {
+    let response: Response | undefined;
+    let body: { data?: InvocationRecord; error?: string } | undefined;
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      response = await fetch(`/api/v1/invocations/${invocation?.id}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(sessionId ? { sessionId } : {}),
+      });
+      body = await response.json();
+      if (response.ok || response.status !== 409) break;
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+    if (!response?.ok || !body?.data) throw new Error(body?.error ?? "Payment confirmation failed");
+    setInvocation(body.data);
+  }
+
   async function confirm() {
     if (!invocation) return;
     setBusy(true);
@@ -140,7 +184,16 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
     try {
       const order = invocation.paymentOrder;
       if (!order) throw new Error("Payment order is missing");
-      if (!order.simulation) {
+      if (order.flow === "QUICKPAY_PRODUCT") {
+        setPaymentPhase("Opening secure checkout");
+        const result = await openQuickPay(order);
+        if (!result.session_id) throw new Error("QuickPay did not return a payment session ID");
+        if (result.client_reference_id && result.client_reference_id !== order.quickPay?.clientReferenceId) {
+          throw new Error("QuickPay result does not match this invocation");
+        }
+        setPaymentPhase("Verifying payment");
+        await reconcile(result.session_id, 12);
+      } else if (!order.simulation) {
         setPaymentPhase("Connecting wallet");
         const { signer, address, network } = await connectWallet();
         if (Number(network.chainId) !== order.chainId) throw new Error(`Switch your wallet to chain ${order.chainId}`);
@@ -152,24 +205,15 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
         }
         setPaymentPhase("Waiting for wallet approval");
         const { PaymentHelper } = await import("goatflow-sdk");
-        const result = await new PaymentHelper(signer).pay(order);
+        const result = await new PaymentHelper(signer).pay({ ...order, flow: "ERC20_DIRECT" });
         if (!result.success || !result.txHash) {
           throw new Error(result.error ?? "Wallet payment failed");
         }
         setPaymentPhase("Reconciling payment");
+        await reconcile(undefined, 8);
+      } else {
+        await reconcile(undefined, 1);
       }
-
-      let response: Response | undefined;
-      let body: { data?: InvocationRecord; error?: string } | undefined;
-      const attempts = order.simulation ? 1 : 8;
-      for (let attempt = 0; attempt < attempts; attempt += 1) {
-        response = await fetch(`/api/v1/invocations/${invocation.id}/confirm`, { method: "POST" });
-        body = await response.json();
-        if (response.ok || response.status !== 409) break;
-        await new Promise((resolve) => setTimeout(resolve, 2000));
-      }
-      if (!response?.ok || !body?.data) throw new Error(body?.error ?? "Payment confirmation failed");
-      setInvocation(body.data);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Confirmation failed");
     } finally {
@@ -200,9 +244,10 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
             <dt className="text-(--muted)">Recipient</dt><dd className="truncate font-mono">{invocation.paymentOrder?.payToAddress}</dd>
             <dt className="text-(--muted)">Amount</dt><dd>{service.pricing.amount} {service.pricing.asset}</dd>
             <dt className="text-(--muted)">Network</dt><dd>{invocation.paymentOrder?.simulation ? "GOAT Testnet simulation" : `Chain ${invocation.paymentOrder?.chainId}`}</dd>
+            {invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" && <><dt className="text-(--muted)">Checkout</dt><dd>GOAT QuickPay</dd></>}
           </dl>
         </div>
-        <button className="button-primary w-full" disabled={busy} onClick={confirm}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : <CircleDollarSign size={17} />} {paymentPhase ?? (invocation.paymentOrder?.simulation ? "Simulate payment" : "Pay and execute")}</button>
+        <button className="button-primary w-full" disabled={busy} onClick={confirm}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : <CircleDollarSign size={17} />} {paymentPhase ?? (invocation.paymentOrder?.simulation ? "Simulate payment" : invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" ? "Open QuickPay checkout" : "Pay and execute")}</button>
       </div>}
 
       {invocation?.status === "SUCCEEDED" && <div>

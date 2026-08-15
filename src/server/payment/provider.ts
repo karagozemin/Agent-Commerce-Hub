@@ -6,7 +6,11 @@ export interface CreatePaymentInput {
   service: ServiceManifest;
 }
 
+export interface PaymentConfirmation {
+  sessionId?: string;
+}
+
 export interface PaymentProvider {
   createOrder(input: CreatePaymentInput): Promise<PaymentOrder>;
-  confirmOrder(order: PaymentOrder, service: ServiceManifest): Promise<PaymentProof>;
+  confirmOrder(order: PaymentOrder, service: ServiceManifest, confirmation?: PaymentConfirmation): Promise<PaymentProof>;
 }

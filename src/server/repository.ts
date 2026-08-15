@@ -8,6 +8,7 @@ export interface InvocationRepository {
   create(record: InvocationRecord): Promise<InvocationRecord>;
   transition(id: string, status: InvocationStatus, patch?: Partial<InvocationRecord>): Promise<InvocationRecord>;
   setPaymentOrder(id: string, order: PaymentOrder): Promise<InvocationRecord>;
+  bindPaymentSession(id: string, sessionId: string): Promise<InvocationRecord>;
   setPaymentProof(id: string, proof: PaymentProof): Promise<InvocationRecord>;
   list(): Promise<InvocationRecord[]>;
 }
@@ -46,6 +47,18 @@ export class MemoryInvocationRepository implements InvocationRepository {
   async setPaymentOrder(id: string, paymentOrder: PaymentOrder) {
     const current = this.require(id);
     const updated = { ...current, paymentOrder, updatedAt: new Date().toISOString() };
+    this.records.set(id, updated);
+    return updated;
+  }
+
+  async bindPaymentSession(id: string, paymentSessionId: string) {
+    const current = this.require(id);
+    if (current.paymentSessionId && current.paymentSessionId !== paymentSessionId) {
+      throw new Error("Invocation is already bound to a different payment session");
+    }
+    const claimed = [...this.records.values()].find((record) => record.id !== id && record.paymentSessionId === paymentSessionId);
+    if (claimed) throw new Error("Payment session is already bound to another invocation");
+    const updated = { ...current, paymentSessionId, updatedAt: new Date().toISOString() };
     this.records.set(id, updated);
     return updated;
   }

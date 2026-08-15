@@ -1,6 +1,7 @@
 import { services } from "@/data/services";
 import { getDatabase } from "./client";
-import { agentIdentities, sellers, serviceRecords, users } from "./schema";
+import { eq } from "drizzle-orm";
+import { agentIdentities, internalWallets, invocations, sellers, serviceRecords, users } from "./schema";
 
 let seedPromise: Promise<void> | undefined;
 
@@ -15,6 +16,21 @@ async function seedCatalog() {
     const wallet = service.sellerWallet.toLowerCase();
     const userId = `usr_seed_${service.id}`;
     const sellerId = `slr_seed_${service.id}`;
+
+    if (service.sellerName === "Agent Commerce Hub") {
+      await db.insert(internalWallets).values({
+        walletAddress: wallet,
+        label: "Agent Commerce Hub first-party wallet",
+        reason: "Founder, seller, and technical smoke-test activity",
+      }).onConflictDoUpdate({
+        target: internalWallets.walletAddress,
+        set: {
+          label: "Agent Commerce Hub first-party wallet",
+          reason: "Founder, seller, and technical smoke-test activity",
+        },
+      });
+      await db.update(invocations).set({ isInternal: true }).where(eq(invocations.buyerWallet, wallet));
+    }
 
     await db.insert(users).values({ id: userId, walletAddress: wallet }).onConflictDoNothing();
     await db.insert(sellers).values({
