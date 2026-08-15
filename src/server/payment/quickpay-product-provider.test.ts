@@ -44,7 +44,7 @@ class OrderVerifier implements PaymentProvider {
     amountWei: order.amountWei,
     chainId: order.chainId,
     confirmedAt: new Date().toISOString(),
-    dappOrderId: "quickpay-order",
+    dappOrderId: "quickpay:qps_test",
   }));
 
   async createOrder(): Promise<PaymentOrder> {
@@ -97,5 +97,47 @@ describe("QuickPayProductPaymentProvider", () => {
     await expect(provider.confirmOrder(order, services[0], { sessionId: "qps_test" }))
       .rejects.toThrow("not correlated");
     expect(verifier.confirm).not.toHaveBeenCalled();
+  });
+
+  it("accepts the production public session shape when optional product metadata is omitted", async () => {
+    const verifier = new OrderVerifier();
+    const snapshot = Object.fromEntries(
+      Object.entries(confirmedSnapshot()).filter(([key]) => key !== "product_key" && key !== "client_reference_id"),
+    );
+    const provider = new QuickPayProductPaymentProvider(verifier, fetchFor(snapshot));
+    const order = await provider.createOrder({ invocationId: "inv_test", buyerWallet: buyer, service: services[0] });
+
+    const proof = await provider.confirmOrder(order, services[0], { sessionId: "qps_test" });
+
+    expect(proof).toMatchObject({
+      orderId: "order_test",
+      paymentSessionId: "qps_test",
+      productKey: "wallet-analysis",
+    });
+    expect(proof.clientReferenceId).toBeUndefined();
+    expect(verifier.confirm).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a merchant proof created for a different QuickPay session", async () => {
+    const verifier = new OrderVerifier();
+    verifier.confirm.mockResolvedValueOnce({
+      ...(await new OrderVerifier().confirm({
+        orderId: "order_test",
+        flow: "ERC20_DIRECT",
+        tokenSymbol: "USDC",
+        tokenContract: token,
+        fromAddress: buyer,
+        payToAddress: buyer,
+        chainId: 2345,
+        amountWei: "100000",
+        expiresAt: 0,
+      })),
+      dappOrderId: "quickpay:qps_other",
+    });
+    const provider = new QuickPayProductPaymentProvider(verifier, fetchFor(confirmedSnapshot()));
+    const order = await provider.createOrder({ invocationId: "inv_test", buyerWallet: buyer, service: services[0] });
+
+    await expect(provider.confirmOrder(order, services[0], { sessionId: "qps_test" }))
+      .rejects.toThrow("does not match the QuickPay session");
   });
 });

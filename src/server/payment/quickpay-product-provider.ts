@@ -172,17 +172,36 @@ export class QuickPayProductPaymentProvider implements PaymentProvider {
     const txHash = optionalString(snapshot.tx_hash);
     if (!orderId) throw new Error("Confirmed QuickPay session is missing its order ID");
     if (!txHash || !isHash(txHash)) throw new Error("Confirmed QuickPay session is missing a valid transaction hash");
-    if (snapshot.product_key !== order.quickPay.productKey) throw new Error("QuickPay product does not match the invocation");
+    const snapshotProductKey = optionalString(snapshot.product_key);
+    if (snapshotProductKey && snapshotProductKey !== order.quickPay.productKey) {
+      throw new Error("QuickPay product does not match the invocation");
+    }
     if (snapshot.merchant_id !== undefined && snapshot.merchant_id !== order.quickPay.merchantId) {
       throw new Error("QuickPay merchant does not match the invocation");
     }
-
-    const referenceMatches = snapshot.client_reference_id === order.quickPay.clientReferenceId
-      || snapshot.idempotency_key === order.quickPay.idempotencyKey;
-    if (!referenceMatches) throw new Error("QuickPay session is not correlated to this invocation");
+    const snapshotReference = optionalString(snapshot.client_reference_id);
+    const snapshotIdempotencyKey = optionalString(snapshot.idempotency_key);
+    if (snapshotReference && snapshotReference !== order.quickPay.clientReferenceId) {
+      throw new Error("QuickPay session is not correlated to this invocation");
+    }
+    if (snapshotIdempotencyKey && snapshotIdempotencyKey !== order.quickPay.idempotencyKey) {
+      throw new Error("QuickPay session is not correlated to this invocation");
+    }
+    if (optionalString(snapshot.amount_wei) && snapshot.amount_wei !== order.amountWei) {
+      throw new Error("QuickPay amount does not match the invocation");
+    }
+    if (snapshot.chain_id !== undefined && Number(snapshot.chain_id) !== order.chainId) {
+      throw new Error("QuickPay chain does not match the invocation");
+    }
+    if (optionalString(snapshot.token_contract) && !sameAddress(String(snapshot.token_contract), order.tokenContract)) {
+      throw new Error("QuickPay token does not match the invocation");
+    }
 
     const proof = await this.orderVerifier.confirmOrder({ ...order, orderId, flow: "ERC20_DIRECT" }, service);
     if (proof.txHash.toLowerCase() !== txHash.toLowerCase()) throw new Error("QuickPay transaction hash does not match the merchant order proof");
+    if (proof.dappOrderId !== `quickpay:${sessionId}`) {
+      throw new Error("Merchant order proof does not match the QuickPay session");
+    }
     if (optionalString(snapshot.amount_wei) && snapshot.amount_wei !== proof.amountWei) {
       throw new Error("QuickPay amount does not match the merchant order proof");
     }
@@ -199,8 +218,8 @@ export class QuickPayProductPaymentProvider implements PaymentProvider {
     return {
       ...proof,
       paymentSessionId: sessionId,
-      clientReferenceId: optionalString(snapshot.client_reference_id),
-      idempotencyKey: optionalString(snapshot.idempotency_key),
+      clientReferenceId: snapshotReference,
+      idempotencyKey: snapshotIdempotencyKey,
       productKey: order.quickPay.productKey,
     };
   }
