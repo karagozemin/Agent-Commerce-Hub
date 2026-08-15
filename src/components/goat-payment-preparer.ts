@@ -22,8 +22,10 @@ export interface BtcPreparationQuote {
   amountIn: bigint;
   currentUsdcBalance: bigint;
   deficit: bigint;
+  estimatedGasLimit: bigint;
   expectedAmountOut: bigint;
   estimatedGasCost: bigint;
+  gasPrice: bigint;
   nativeBalance: bigint;
 }
 
@@ -87,9 +89,10 @@ export async function quoteBtcPreparation(
   }
   if (expectedAmountOut < targetOutput) throw new Error("Could not quote enough USDC for this payment");
 
-  const feeData = await provider.getFeeData();
-  const gasPrice = feeData.maxFeePerGas ?? feeData.gasPrice;
-  if (!gasPrice || gasPrice <= 0n) throw new Error("Could not estimate GOAT Mainnet gas price");
+  const gasPriceValue = await provider.send("eth_gasPrice", []);
+  if (typeof gasPriceValue !== "string") throw new Error("GOAT Mainnet returned an invalid gas price");
+  const gasPrice = BigInt(gasPriceValue);
+  if (gasPrice <= 0n) throw new Error("Could not estimate GOAT Mainnet gas price");
 
   // eth_estimateGas may reject an underfunded sender, so check a conservative ceiling first.
   const preliminaryGasCost = gasPrice * 400_000n;
@@ -102,16 +105,26 @@ export async function quoteBtcPreparation(
   const router = new Contract(okuRouterAddress, routerAbi, signer);
   const estimatedGas = await router.exactInputSingle.estimateGas(
     swapParameters(walletAddress, amountIn, deficit),
-    { value: amountIn },
+    { value: amountIn, gasPrice },
   ) as bigint;
-  const estimatedGasCost = estimatedGas * gasPrice * 125n / 100n;
+  const estimatedGasLimit = estimatedGas * 125n / 100n;
+  const estimatedGasCost = estimatedGasLimit * gasPrice;
   if (nativeBalance < amountIn + estimatedGasCost) {
     throw new Error(
       `Insufficient native BTC: have ${formatUnits(nativeBalance, 18)}, need about ${formatUnits(amountIn + estimatedGasCost, 18)} including gas`,
     );
   }
 
-  return { amountIn, currentUsdcBalance, deficit, expectedAmountOut, estimatedGasCost, nativeBalance };
+  return {
+    amountIn,
+    currentUsdcBalance,
+    deficit,
+    estimatedGasLimit,
+    expectedAmountOut,
+    estimatedGasCost,
+    gasPrice,
+    nativeBalance,
+  };
 }
 
 export async function executeBtcPreparation(
@@ -126,7 +139,11 @@ export async function executeBtcPreparation(
   const router = new Contract(okuRouterAddress, routerAbi, signer);
   const transaction = await router.exactInputSingle(
     swapParameters(walletAddress, quote.amountIn, quote.deficit),
-    { value: quote.amountIn },
+    {
+      value: quote.amountIn,
+      gasLimit: quote.estimatedGasLimit,
+      gasPrice: quote.gasPrice,
+    },
   );
   const receipt = await transaction.wait(1);
   if (!receipt || receipt.status !== 1) throw new Error("BTC to USDC swap failed");
