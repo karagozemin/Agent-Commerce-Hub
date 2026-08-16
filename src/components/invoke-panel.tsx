@@ -224,8 +224,20 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
       const order = invocation.paymentOrder;
       if (!order) throw new Error("Payment order is missing");
       if (order.flow === "QUICKPAY_PRODUCT") {
-        const walletConnection = await connectWallet();
-        if (btcPreparation) {
+        if (btcPreparation || !quickPayFunded) {
+          const walletConnection = await connectWallet();
+          if (!btcPreparation) {
+            setPaymentPhase("Checking payment balance");
+            const quote = await quoteBtcPreparation(walletConnection.provider, walletConnection.signer, order);
+            if (quote) {
+              setBtcPreparation(quote);
+            } else {
+              setQuickPayFunded(true);
+            }
+            // Checkout must be opened by a fresh user gesture after async wallet work.
+            return;
+          }
+
           let hash = swapProgress?.hash;
           if (!hash) {
             setPaymentPhase("Refreshing BTC swap quote");
@@ -251,15 +263,8 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
           setQuickPayFunded(true);
           setSwapProgress((current) => current ? { ...current, state: "confirmed" } : current);
           return;
-        } else if (!quickPayFunded) {
-          setPaymentPhase("Checking payment balance");
-          const quote = await quoteBtcPreparation(walletConnection.provider, walletConnection.signer, order);
-          if (quote) {
-            setBtcPreparation(quote);
-            return;
-          }
-          setQuickPayFunded(true);
         }
+        // GoatCheckout.open must run before any await so the browser keeps the click gesture.
         setPaymentPhase("Opening secure checkout");
         const result = await openQuickPay(order);
         if (!result.session_id) throw new Error("QuickPay did not return a payment session ID");
