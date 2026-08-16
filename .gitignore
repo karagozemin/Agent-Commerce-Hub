@@ -4,6 +4,9 @@ out
 coverage
 .env
 .env.local
+.neon
 *.log
 *.tsbuildinfo
 .DS_Store
+.vercel
+.env*
