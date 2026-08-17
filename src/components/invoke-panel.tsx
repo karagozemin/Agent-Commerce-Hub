@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatUnits } from "ethers";
-import { GoatCheckout, type CheckoutResult } from "goatflow-checkout";
+import type { CheckoutResult } from "goatflow-checkout";
 import { ArrowRightLeft, CheckCircle2, CircleDollarSign, Clock3, Copy, ExternalLink, LoaderCircle, Play, ShieldCheck, Wallet } from "lucide-react";
 import type { InvocationRecord, ServiceManifest } from "@/domain/types";
 import {
@@ -30,6 +30,12 @@ interface SwapProgress {
   hash: `0x${string}`;
   startedAt: number;
   state: "confirming" | "confirmed";
+}
+
+interface QuickPayMessage extends CheckoutResult {
+  type?: string;
+  n?: string;
+  message?: string;
 }
 
 async function findMetaMaskProvider() {
@@ -72,6 +78,24 @@ function placeholderFor(slug: string) {
   return `0x${"a".repeat(40)}`;
 }
 
+function quickPayCheckoutUrl(
+  order: NonNullable<InvocationRecord["paymentOrder"]>,
+  channelNonce: string,
+  openerOrigin: string,
+) {
+  const config = order.quickPay;
+  if (!config) throw new Error("QuickPay checkout configuration is missing");
+  const url = new URL("/quickpay/checkout", config.origin);
+  url.searchParams.set("m", config.merchantId);
+  url.searchParams.set("product_key", config.productKey);
+  url.searchParams.set("token", order.tokenSymbol);
+  url.searchParams.set("chain", String(order.chainId));
+  url.searchParams.set("client_reference_id", config.clientReferenceId);
+  url.searchParams.set("o", openerOrigin);
+  url.searchParams.set("n", channelNonce);
+  return url.toString();
+}
+
 export function InvokePanel({ service }: { service: ServiceManifest }) {
   const [wallet, setWallet] = useState("");
   const [value, setValue] = useState(placeholderFor(service.slug));
@@ -84,12 +108,16 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
   const [quickPayFunded, setQuickPayFunded] = useState(false);
   const [swapProgress, setSwapProgress] = useState<SwapProgress>();
   const [clock, setClock] = useState(0);
+  const [quickPayChannel, setQuickPayChannel] = useState<string>();
+  const quickPayCleanup = useRef<() => void>(() => undefined);
 
   useEffect(() => {
     if (swapProgress?.state !== "confirming") return;
     const timer = window.setInterval(() => setClock(Date.now()), 1_000);
     return () => window.clearInterval(timer);
   }, [swapProgress]);
+
+  useEffect(() => () => quickPayCleanup.current(), []);
 
   async function connectWallet() {
     const ethereum = await findMetaMaskProvider();
@@ -155,6 +183,7 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
       setBtcPreparation(undefined);
       setQuickPayFunded(false);
       setSwapProgress(undefined);
+      setQuickPayChannel(crypto.randomUUID().replaceAll("-", ""));
       if (nextInvocation.paymentOrder?.flow === "QUICKPAY_PRODUCT") {
         setPaymentPhase("Checking payment balance");
         const quote = await quoteBtcPreparation(
@@ -173,32 +202,6 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
     }
   }
 
-  function openQuickPay(order: NonNullable<InvocationRecord["paymentOrder"]>) {
-    const config = order.quickPay;
-    if (!config) throw new Error("QuickPay checkout configuration is missing");
-
-    return new Promise<CheckoutResult>((resolve, reject) => {
-      const checkout = GoatCheckout({ origin: config.origin });
-      checkout.open({
-        merchant: config.merchantId,
-        productKey: config.productKey,
-        token: order.tokenSymbol,
-        chain: order.chainId,
-        clientReferenceId: config.clientReferenceId,
-        display: "tab",
-        onSuccess: resolve,
-        onCancel: () => reject(new Error("Payment was cancelled")),
-        onError: (reason) => reject(new Error(
-          reason === "popup_blocked"
-            ? "Allow popups for this site and try again"
-            : reason === "opener_unavailable"
-              ? "Checkout opened, but the browser disconnected its secure result channel. Do not pay twice; return after checking the existing payment"
-              : "QuickPay checkout could not be completed",
-        )),
-      });
-    });
-  }
-
   async function reconcile(sessionId: string | undefined, attempts: number) {
     let response: Response | undefined;
     let body: { data?: InvocationRecord; error?: string } | undefined;
@@ -214,6 +217,84 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
     }
     if (!response?.ok || !body?.data) throw new Error(body?.error ?? "Payment confirmation failed");
     setInvocation(body.data);
+  }
+
+  function beginQuickPayCheckout() {
+    const order = invocation?.paymentOrder;
+    const config = order?.quickPay;
+    if (!order || !config || !quickPayChannel) return;
+
+    quickPayCleanup.current();
+    setBusy(true);
+    setError(undefined);
+    setPaymentPhase("Complete payment in QuickPay");
+
+    const expectedOrigin = new URL(config.origin).origin;
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      setBusy(false);
+      setPaymentPhase(undefined);
+      setError("QuickPay did not finish. Return to the checkout tab or request a new invocation");
+    }, 15 * 60 * 1_000);
+
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener("message", onMessage);
+      quickPayCleanup.current = () => undefined;
+    };
+    const acknowledge = (event: MessageEvent<QuickPayMessage>) => {
+      try {
+        (event.source as WindowProxy | null)?.postMessage({ type: "goat:ack", n: quickPayChannel }, { targetOrigin: expectedOrigin });
+      } catch {
+        // The checkout tab may already be closing.
+      }
+    };
+    const finishWithError = (message: string) => {
+      cleanup();
+      setBusy(false);
+      setPaymentPhase(undefined);
+      setError(message);
+    };
+    const onMessage = (event: MessageEvent<QuickPayMessage>) => {
+      if (event.origin !== expectedOrigin || event.data?.n !== quickPayChannel) return;
+      if (event.data.type === "goat:ready") {
+        setPaymentPhase("Complete payment in QuickPay");
+        return;
+      }
+      if (event.data.type === "goat:cancel") {
+        acknowledge(event);
+        finishWithError("Payment was cancelled");
+        return;
+      }
+      if (event.data.type === "goat:error") {
+        acknowledge(event);
+        finishWithError(event.data.message || "QuickPay checkout could not be completed");
+        return;
+      }
+      if (event.data.type !== "goat:success") return;
+
+      acknowledge(event);
+      cleanup();
+      void (async () => {
+        try {
+          const result = event.data;
+          if (!result.session_id) throw new Error("QuickPay did not return a payment session ID");
+          if (result.client_reference_id && result.client_reference_id !== config.clientReferenceId) {
+            throw new Error("QuickPay result does not match this invocation");
+          }
+          setPaymentPhase("Verifying payment");
+          await reconcile(result.session_id, 12);
+        } catch (cause) {
+          setError(cause instanceof Error ? cause.message : "Payment confirmation failed");
+        } finally {
+          setBusy(false);
+          setPaymentPhase(undefined);
+        }
+      })();
+    };
+
+    window.addEventListener("message", onMessage);
+    quickPayCleanup.current = cleanup;
   }
 
   async function confirm() {
@@ -264,15 +345,7 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
           setSwapProgress((current) => current ? { ...current, state: "confirmed" } : current);
           return;
         }
-        // GoatCheckout.open must run before any await so the browser keeps the click gesture.
-        setPaymentPhase("Opening secure checkout");
-        const result = await openQuickPay(order);
-        if (!result.session_id) throw new Error("QuickPay did not return a payment session ID");
-        if (result.client_reference_id && result.client_reference_id !== order.quickPay?.clientReferenceId) {
-          throw new Error("QuickPay result does not match this invocation");
-        }
-        setPaymentPhase("Verifying payment");
-        await reconcile(result.session_id, 12);
+        throw new Error("Open QuickPay checkout using the payment link");
       } else if (!order.simulation) {
         setPaymentPhase("Connecting wallet");
         const { signer, address, network } = await connectWallet();
@@ -306,6 +379,9 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
     ? Math.max(0, Math.floor((clock - swapProgress.startedAt) / 1_000))
     : 0;
   const swapRemainingSeconds = Math.max(0, 12 - swapElapsedSeconds);
+  const quickPayHref = invocation?.paymentOrder?.flow === "QUICKPAY_PRODUCT" && quickPayChannel
+    ? quickPayCheckoutUrl(invocation.paymentOrder, quickPayChannel, window.location.origin)
+    : undefined;
 
   return (
     <aside className="panel p-5 lg:sticky lg:top-5">
@@ -343,7 +419,16 @@ export function InvokePanel({ service }: { service: ServiceManifest }) {
           <p className="mt-3 text-xs leading-5 text-(--muted)">One swap approval. The remaining native BTC stays in your wallet for gas.</p>
         </div>}
         {quickPayFunded && invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" && <p className="mb-4 flex items-center gap-2 text-xs font-bold text-(--green)"><CheckCircle2 size={16} /> USDC balance ready for QuickPay</p>}
-        <button className="button-primary w-full" disabled={busy} onClick={confirm}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : swapProgress?.state === "confirming" ? <Clock3 size={17} /> : btcPreparation ? <ArrowRightLeft size={17} /> : <CircleDollarSign size={17} />} {paymentPhase ?? (invocation.paymentOrder?.simulation ? "Simulate payment" : swapProgress?.state === "confirming" ? "Check swap status" : btcPreparation ? "Swap BTC" : invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" ? "Open QuickPay checkout" : "Pay and execute")}</button>
+        {quickPayHref && quickPayFunded ? <a
+          aria-disabled={busy}
+          className={`button-primary w-full ${busy ? "pointer-events-none opacity-60" : ""}`}
+          href={quickPayHref}
+          target={`goat_quickpay_${invocation.id}`}
+          onClick={beginQuickPayCheckout}
+        >
+          {busy ? <LoaderCircle className="animate-spin" size={17} /> : <CircleDollarSign size={17} />}
+          {paymentPhase ?? "Open QuickPay checkout"}
+        </a> : <button className="button-primary w-full" disabled={busy} onClick={confirm}>{busy ? <LoaderCircle className="animate-spin" size={17} /> : swapProgress?.state === "confirming" ? <Clock3 size={17} /> : btcPreparation ? <ArrowRightLeft size={17} /> : <CircleDollarSign size={17} />} {paymentPhase ?? (invocation.paymentOrder?.simulation ? "Simulate payment" : swapProgress?.state === "confirming" ? "Check swap status" : btcPreparation ? "Swap BTC" : invocation.paymentOrder?.flow === "QUICKPAY_PRODUCT" ? "Check payment balance" : "Pay and execute")}</button>}
         {swapProgress && <div className="mt-4 border-t border-(--line) pt-4" aria-live="polite">
           <div className="flex items-start justify-between gap-3 text-xs">
             <div className="flex min-w-0 gap-2">
