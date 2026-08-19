@@ -85,4 +85,17 @@ describe("seller onboarding", () => {
     await seller.createProfile(session, { displayName: "Test Labs" });
     await expect(seller.createService(session, { ...serviceInput, price: "2.00" })).rejects.toThrow("between");
   });
+
+  it("rejects a receiving wallet that differs from the authenticated seller", async () => {
+    const seller = new SellerService(
+      new MemorySellerRepository(),
+      async (endpoint) => validateSellerEndpoint(endpoint),
+    );
+    await seller.createProfile(session, { displayName: "Test Labs" });
+
+    await expect(seller.createService(session, {
+      ...serviceInput,
+      receivingWallet: "0x12a000000000000000000000000000000000009b",
+    })).rejects.toThrow("authenticated seller wallet");
+  });
 });

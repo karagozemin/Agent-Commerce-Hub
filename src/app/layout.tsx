@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Activity, CircleDollarSign } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,7 +28,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <Link href="/dashboard" className="hover:text-[var(--ink)]">Dashboard</Link>
               <Link href="/docs" className="hover:text-[var(--ink)]">Docs</Link>
             </nav>
-            <Link href="/sell" className="button-primary header-cta"><CircleDollarSign size={17} /> List a service</Link>
+            <div className="flex items-center gap-3">
+              <ThemeToggle />
+              <Link href="/sell" className="button-primary header-cta"><CircleDollarSign size={17} /> List a service</Link>
+            </div>
           </div>
         </header>
         {children}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BadgeCheck, CheckCircle2, CircleDollarSign, CloudUpload, LoaderCircle, LogOut, Plug, RefreshCw, ServerCog, ShieldCheck, Wallet } from "lucide-react";
+import { BadgeCheck, CheckCircle2, ChevronDown, CircleDollarSign, CloudUpload, LoaderCircle, LogOut, Plug, RefreshCw, ServerCog, ShieldCheck, Wallet } from "lucide-react";
 
 interface Workspace {
   profile?: { id: string; displayName: string };
@@ -50,7 +50,9 @@ export function SellerOnboarding() {
       const sessionResponse = await fetch("/api/v1/auth/session");
       if (!sessionResponse.ok) return;
       const sessionBody = await sessionResponse.json();
-      setWalletAddress(sessionBody.data.walletAddress);
+      const address = sessionBody.data.walletAddress;
+      setWalletAddress(address);
+      setForm((current) => ({ ...current, receivingWallet: address }));
       const workspaceResponse = await fetch("/api/v1/seller/services");
       if (workspaceResponse.ok) setWorkspace((await workspaceResponse.json()).data);
     })();
@@ -124,6 +126,7 @@ export function SellerOnboarding() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
+          receivingWallet: walletAddress,
           inputSchema: JSON.parse(form.inputSchema),
           outputSchema: JSON.parse(form.outputSchema),
           testInput: JSON.parse(form.testInput),
@@ -179,14 +182,21 @@ export function SellerOnboarding() {
         <Field label="Category"><select className="field" value={form.category} onChange={(e) => update("category", e.target.value)}><option>Developer Tools</option><option>Research & Data</option><option>Agent Operations</option><option>GOAT Native</option></select></Field>
         <div className="md:col-span-2"><Field label="Description"><textarea className="field min-h-24 resize-y" required minLength={20} maxLength={500} value={form.description} onChange={(e) => update("description", e.target.value)} placeholder="Describe the useful outcome a buyer receives."/></Field></div>
         <div className="md:col-span-2"><Field label="HTTPS endpoint"><input className="field font-mono text-xs" required value={form.endpoint} onChange={(e) => update("endpoint", e.target.value)} placeholder="https://api.example.com/v1/analyze"/></Field></div>
-        <Field label="Price per invocation"><div className="relative"><CircleDollarSign size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]"/><input className="field pl-9" required value={form.price} onChange={(e) => update("price", e.target.value)} inputMode="decimal"/></div></Field>
+        <Field label="Price per invocation"><div className="control-with-leading-icon"><CircleDollarSign size={16} aria-hidden="true"/><input required value={form.price} onChange={(e) => update("price", e.target.value)} inputMode="decimal" aria-label="Price per invocation in USDC"/></div></Field>
         <Field label="Network"><select className="field" value={form.network} onChange={(e) => update("network", e.target.value)}><option value="goat-testnet">GOAT Testnet3</option><option value="goat-mainnet">GOAT Mainnet</option></select></Field>
-        <div className="md:col-span-2"><Field label="Receiving wallet"><input className="field font-mono text-xs" required value={form.receivingWallet} onChange={(e) => update("receivingWallet", e.target.value)}/></Field></div>
-        <Field label="Input schema"><textarea className="field min-h-52 resize-y font-mono text-xs" required value={form.inputSchema} onChange={(e) => update("inputSchema", e.target.value)}/></Field>
-        <Field label="Output schema"><textarea className="field min-h-52 resize-y font-mono text-xs" required value={form.outputSchema} onChange={(e) => update("outputSchema", e.target.value)}/></Field>
-        <div className="md:col-span-2"><Field label="Test input"><textarea className="field min-h-32 resize-y font-mono text-xs" required value={form.testInput} onChange={(e) => update("testInput", e.target.value)}/></Field></div>
-        <Field label="ERC-8004 agent ID (optional)"><input className="field" value={form.agentId} onChange={(e) => update("agentId", e.target.value)} placeholder="184"/></Field>
-        <Field label="Agent URI (optional)"><input className="field" value={form.agentUri} onChange={(e) => update("agentUri", e.target.value)} placeholder="https://example.com/agent.json"/></Field>
+        <div className="md:col-span-2"><Field label="Receiving wallet"><input className="field font-mono text-xs" readOnly value={walletAddress}/><span className="mt-2 block text-xs font-normal leading-5 text-[var(--muted)]">Payments are locked to the wallet that signed this seller session.</span></Field></div>
+        <Field label="ERC-8004 agent ID"><input className="field" required inputMode="numeric" pattern="[0-9]+" value={form.agentId} onChange={(e) => update("agentId", e.target.value)} placeholder="184"/></Field>
+        <Field label="Agent URI"><input className="field" required type="url" value={form.agentUri} onChange={(e) => update("agentUri", e.target.value)} placeholder="https://example.com/agent.json"/></Field>
+        <p className="md:col-span-2 -mt-2 text-xs leading-5 text-[var(--muted)]">Both values are checked against the ERC-8004 registry before the service can be published.</p>
+        <details className="advanced-settings md:col-span-2">
+          <summary><span>Advanced request configuration <small className="ml-2 font-normal text-[var(--muted)]">JSON Schema</small></span><ChevronDown size={17}/></summary>
+          <div className="grid gap-5 border-t border-[var(--line)] p-4 md:grid-cols-2">
+            <p className="md:col-span-2 text-xs leading-5 text-[var(--muted)]">These contracts define what the service accepts and returns. Invalid JSON, incompatible test data, or a mismatched endpoint response blocks verification.</p>
+            <Field label="Input schema"><textarea className="field min-h-44 resize-y font-mono text-xs" required spellCheck={false} value={form.inputSchema} onChange={(e) => update("inputSchema", e.target.value)}/></Field>
+            <Field label="Output schema"><textarea className="field min-h-44 resize-y font-mono text-xs" required spellCheck={false} value={form.outputSchema} onChange={(e) => update("outputSchema", e.target.value)}/></Field>
+            <div className="md:col-span-2"><Field label="Endpoint test input"><textarea className="field min-h-28 resize-y font-mono text-xs" required spellCheck={false} value={form.testInput} onChange={(e) => update("testInput", e.target.value)}/></Field></div>
+          </div>
+        </details>
       </div>
       <button className="button-primary mt-6" disabled={busy}>{busy ? <LoaderCircle className="animate-spin" size={17}/> : <ServerCog size={17}/>} Save draft</button>
       {notice && <p className="mt-5 flex gap-2 rounded-[5px] bg-[var(--green-soft)] p-4 text-sm leading-6 text-[var(--green)]"><CheckCircle2 className="mt-0.5 shrink-0" size={17}/>{notice}</p>}

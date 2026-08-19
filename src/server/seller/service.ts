@@ -75,6 +75,9 @@ export class SellerService {
     const profile = await this.repository.findProfileByUser(session.userId);
     if (!profile) throw new Error("Create a seller profile first");
     if (!isAddress(data.receivingWallet)) throw new Error("A valid receiving wallet is required");
+    if (data.receivingWallet.toLowerCase() !== session.walletAddress.toLowerCase()) {
+      throw new Error("Receiving wallet must match the authenticated seller wallet");
+    }
     const numericPrice = Number(data.price);
     if (numericPrice < 0.01 || numericPrice > 1) throw new Error("Pilot price must be between 0.01 and 1.00 USDC");
     const endpoint = await this.endpointValidator(data.endpoint);

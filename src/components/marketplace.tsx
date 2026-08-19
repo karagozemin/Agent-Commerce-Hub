@@ -20,13 +20,13 @@ export function Marketplace({ services }: { services: ServiceManifest[] }) {
   return (
     <>
       <div className="mb-6 grid gap-3 md:grid-cols-[1fr_240px]">
-        <label className="relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
-          <input className="field pl-10" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search capability, service, or seller" />
+        <label className="control-with-leading-icon">
+          <Search size={18} aria-hidden="true" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search capability, service, or seller" />
         </label>
-        <label className="relative">
-          <SlidersHorizontal size={17} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
-          <select className="field pl-10" value={category} onChange={(event) => setCategory(event.target.value)}>
+        <label className="control-with-leading-icon">
+          <SlidersHorizontal size={17} aria-hidden="true" />
+          <select value={category} onChange={(event) => setCategory(event.target.value)}>
             {categories.map((item) => <option key={item}>{item}</option>)}
           </select>
         </label>
