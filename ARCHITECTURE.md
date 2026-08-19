@@ -188,14 +188,61 @@ erDiagram
   SERVICES ||--o{ INVOCATIONS : receives
   USERS ||--o{ AUTH_CHALLENGES : requests
 
-  USERS { text id PK; text wallet_address UK }
-  SELLERS { text id PK; text user_id FK; text display_name; text status }
-  SERVICES { text id PK; text seller_id FK; text slug UK; jsonb input_schema; jsonb output_schema; text status; text receiving_wallet }
-  AGENT_IDENTITIES { text id PK; text service_id UK; text agent_id; text agent_uri; timestamp verified_at }
-  MERCHANT_CONFIGS { text id PK; text seller_id UK; text encrypted_api_key; text encrypted_api_secret; timestamp verified_at }
-  INVOCATIONS { text id PK; text service_id FK; text buyer_wallet; text status; jsonb payment_order; jsonb payment_proof; jsonb receipt }
-  SESSIONS { text id PK; text user_id FK; text wallet_address; timestamp expires_at }
-  AUTH_CHALLENGES { text id PK; text wallet_address; text message; timestamp expires_at; timestamp consumed_at }
+  USERS {
+    string id PK
+    string wallet_address UK
+  }
+  SELLERS {
+    string id PK
+    string user_id FK
+    string display_name
+    string status
+  }
+  SERVICES {
+    string id PK
+    string seller_id FK
+    string slug UK
+    json input_schema
+    json output_schema
+    string status
+    string receiving_wallet
+  }
+  AGENT_IDENTITIES {
+    string id PK
+    string service_id UK
+    string agent_id
+    string agent_uri
+    datetime verified_at
+  }
+  MERCHANT_CONFIGS {
+    string id PK
+    string seller_id UK
+    string encrypted_api_key
+    string encrypted_api_secret
+    datetime verified_at
+  }
+  INVOCATIONS {
+    string id PK
+    string service_id FK
+    string buyer_wallet
+    string status
+    json payment_order
+    json payment_proof
+    json receipt
+  }
+  SESSIONS {
+    string id PK
+    string user_id FK
+    string wallet_address
+    datetime expires_at
+  }
+  AUTH_CHALLENGES {
+    string id PK
+    string wallet_address
+    string message
+    datetime expires_at
+    datetime consumed_at
+  }
 ~~~
 
 The schema lives in src/db/schema.ts. Repository implementations keep application code independent from the memory/PostgreSQL choice.
