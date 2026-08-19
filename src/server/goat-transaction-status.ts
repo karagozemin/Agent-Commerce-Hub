@@ -12,6 +12,30 @@ export interface GoatTransactionStatus {
   tokenBalance?: string;
 }
 
+export interface GoatWalletSnapshot {
+  address: string;
+  nativeBalanceWei: string;
+  transactionCount: number;
+  accountType: "contract" | "externally-owned";
+  observedBlock: number;
+}
+
+export async function getGoatWalletSnapshot(address: string): Promise<GoatWalletSnapshot> {
+  const [nativeBalance, transactionCount, code, observedBlock] = await Promise.all([
+    provider.getBalance(address),
+    provider.getTransactionCount(address),
+    provider.getCode(address),
+    provider.getBlockNumber(),
+  ]);
+  return {
+    address,
+    nativeBalanceWei: nativeBalance.toString(),
+    transactionCount,
+    accountType: code === "0x" ? "externally-owned" : "contract",
+    observedBlock,
+  };
+}
+
 export async function getGoatAccountBalances(account: string, token: string) {
   const contract = new Contract(token, erc20Abi, provider);
   const [nativeBalance, tokenBalance] = await Promise.all([

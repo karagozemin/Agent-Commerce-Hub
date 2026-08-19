@@ -6,6 +6,7 @@ import { InvocationService } from "./invocation-service";
 
 const token = "0x0000000000000000000000000000000000000001" as const;
 const buyer = "0x12a000000000000000000000000000000000009a" as const;
+const executeTestService = async () => ({ summary: "Verified test result", riskSignals: [] });
 
 class TestPaymentProvider implements PaymentProvider {
   orders = 0;
@@ -53,7 +54,7 @@ function startInput() {
 describe("InvocationService", () => {
   it("reuses an invocation for the same payer and idempotency key", async () => {
     const payments = new TestPaymentProvider();
-    const service = new InvocationService(new MemoryInvocationRepository(), payments);
+    const service = new InvocationService(new MemoryInvocationRepository(), payments, executeTestService);
     const first = await service.start(startInput());
     const second = await service.start(startInput());
 
@@ -63,7 +64,7 @@ describe("InvocationService", () => {
 
   it("rejects an idempotency key reused with different input", async () => {
     const payments = new TestPaymentProvider();
-    const service = new InvocationService(new MemoryInvocationRepository(), payments);
+    const service = new InvocationService(new MemoryInvocationRepository(), payments, executeTestService);
     await service.start(startInput());
 
     await expect(service.start({
@@ -74,7 +75,7 @@ describe("InvocationService", () => {
   });
 
   it("fulfills once after matching proof", async () => {
-    const service = new InvocationService(new MemoryInvocationRepository(), new TestPaymentProvider());
+    const service = new InvocationService(new MemoryInvocationRepository(), new TestPaymentProvider(), executeTestService);
     const started = await service.start(startInput());
     const fulfilled = await service.confirm(started.id);
     const retried = await service.confirm(started.id);
@@ -90,7 +91,7 @@ describe("InvocationService", () => {
       ...proof,
       toAddress: "0x0000000000000000000000000000000000000002",
     });
-    const service = new InvocationService(new MemoryInvocationRepository(), payments);
+    const service = new InvocationService(new MemoryInvocationRepository(), payments, executeTestService);
     const started = await service.start(startInput());
 
     await expect(service.confirm(started.id)).rejects.toThrow("does not match");
@@ -123,7 +124,7 @@ describe("InvocationService", () => {
         throw new Error("Payment is not confirmed: ORDER_CREATED");
       },
     };
-    const service = new InvocationService(repository, payments);
+    const service = new InvocationService(repository, payments, executeTestService);
     const started = await service.start(startInput());
 
     await expect(service.confirm(started.id, { sessionId: "qps_unverified" })).rejects.toThrow("not confirmed");

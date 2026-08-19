@@ -15,6 +15,7 @@ export class InvocationService {
   constructor(
     private readonly repository: InvocationRepository = invocationRepository,
     private readonly payments: PaymentProvider = getPaymentProvider(),
+    private readonly executor: typeof executeService = executeService,
   ) {}
 
   async start(input: {
@@ -111,7 +112,7 @@ export class InvocationService {
     }
 
     try {
-      const output = await executeService(service, invocation.input);
+      const output = await this.executor(service, invocation.input);
       const outputHash = hashPayload(output);
       const receipt: InvocationReceipt = {
         invocationId: invocation.id,

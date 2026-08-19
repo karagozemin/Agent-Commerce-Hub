@@ -2,17 +2,27 @@ import type { ServiceManifest } from "@/domain/types";
 import type { RuntimeService } from "./catalog";
 import { callPublicJsonEndpoint } from "./service-endpoint-verifier";
 import { assertMatchesSchema, compileJsonSchema } from "./schema-validation";
+import { getGoatWalletSnapshot } from "./goat-transaction-status";
 
 export async function executeService(service: ServiceManifest | RuntimeService, input: unknown) {
   const data = input as Record<string, string>;
 
   switch (service.slug) {
     case "wallet-lens":
+      const snapshot = await getGoatWalletSnapshot(data.address);
       return {
-        address: data.address,
-        summary: "Active GOAT account with recurring contract interactions and no critical risk signal in this demo response.",
-        activity: { transactions: 48, activeDays: 12, contractsUsed: 9 },
-        riskSignals: ["No known malicious counterparties", "No unusual approval concentration"],
+        address: snapshot.address,
+        summary: `${snapshot.accountType === "contract" ? "Contract account" : "Externally-owned account"} observed on GOAT mainnet at block ${snapshot.observedBlock} with ${snapshot.transactionCount} confirmed outgoing transaction${snapshot.transactionCount === 1 ? "" : "s"}.`,
+        activity: {
+          transactionCount: snapshot.transactionCount,
+          nativeBalanceWei: snapshot.nativeBalanceWei,
+          observedBlock: snapshot.observedBlock,
+        },
+        riskSignals: snapshot.transactionCount === 0
+          ? ["No confirmed outgoing transaction history was observed"]
+          : [],
+        accountType: snapshot.accountType,
+        dataSource: "GOAT mainnet JSON-RPC",
       };
     case "tx-explain":
       return {
