@@ -50,6 +50,7 @@ body {
 a { color: inherit; text-decoration: none; }
 button, input, select, textarea { font: inherit; letter-spacing: 0; }
 button { cursor: pointer; }
+header a, header button, .theme-toggle, .theme-toggle button { transition: color 180ms ease, background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, filter 180ms ease; }
 input::placeholder, textarea::placeholder { color: #6f6b63; opacity: 1; }
 select { color-scheme: dark; }
 table { background: var(--surface); }
@@ -224,6 +225,28 @@ tbody tr:hover { background: rgba(233, 185, 73, 0.035); }
 :root[data-theme="light"] .text-red-700 { color: #b42318 !important; }
 :root[data-theme="light"] input::placeholder,
 :root[data-theme="light"] textarea::placeholder { color: #8a8d85; }
+
+.theme-changing body,
+.theme-changing header,
+.theme-changing footer,
+.theme-changing .panel,
+.theme-changing .field,
+.theme-changing .control-with-leading-icon,
+.theme-changing .button-primary,
+.theme-changing .button-secondary,
+.theme-changing .icon-button,
+.theme-changing table,
+.theme-changing pre,
+.theme-changing a,
+.theme-changing strong,
+.theme-changing h1,
+.theme-changing h2,
+.theme-changing h3,
+.theme-changing p,
+.theme-changing span,
+.theme-changing label,
+.theme-changing dt,
+.theme-changing dd { transition: color 220ms ease, background-color 220ms ease, border-color 220ms ease, box-shadow 220ms ease, filter 220ms ease; }
 
 @media (max-width: 680px) {
   .shell { width: min(100% - 24px, 1180px); }

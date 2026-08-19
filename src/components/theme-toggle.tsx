@@ -1,7 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Theme = "dark" | "light";
 
@@ -9,16 +9,25 @@ export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(() => (
     typeof window !== "undefined" && window.localStorage.getItem("ach-theme") === "dark" ? "dark" : "light"
   ));
+  const transitionTimer = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
   function choose(nextTheme: Theme) {
+    if (nextTheme === theme) return;
+    window.clearTimeout(transitionTimer.current);
+    document.documentElement.classList.add("theme-changing");
     setTheme(nextTheme);
     document.documentElement.dataset.theme = nextTheme;
     window.localStorage.setItem("ach-theme", nextTheme);
+    transitionTimer.current = window.setTimeout(() => {
+      document.documentElement.classList.remove("theme-changing");
+    }, 240);
   }
+
+  useEffect(() => () => window.clearTimeout(transitionTimer.current), []);
 
   return (
     <div className="theme-toggle" aria-label="Choose color theme" suppressHydrationWarning>
