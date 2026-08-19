@@ -7,7 +7,7 @@ type Theme = "dark" | "light";
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(() => (
-    typeof window !== "undefined" && window.localStorage.getItem("ach-theme") === "light" ? "light" : "dark"
+    typeof window !== "undefined" && window.localStorage.getItem("ach-theme") === "dark" ? "dark" : "light"
   ));
 
   useEffect(() => {
