@@ -205,6 +205,8 @@ tbody tr:hover { background: rgba(233, 185, 73, 0.035); }
 }
 
 :root[data-theme="light"] .panel { background: linear-gradient(145deg, #ffffff, #f8f9f6); box-shadow: 0 12px 32px rgba(24, 28, 20, 0.08); }
+:root[data-theme="light"] .button-primary { background: #f0c35a; border-color: #f0c35a; color: #17130a; box-shadow: 0 8px 24px rgba(192, 139, 29, 0.16); }
+:root[data-theme="light"] .button-primary:hover { background: #f0c35a; border-color: #f0c35a; box-shadow: 0 10px 28px rgba(192, 139, 29, 0.24); filter: brightness(1.04); }
 :root[data-theme="light"] .button-secondary,
 :root[data-theme="light"] .icon-button { background: #ffffff; }
 :root[data-theme="light"] .button-secondary:hover,
